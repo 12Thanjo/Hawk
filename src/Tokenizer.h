@@ -67,6 +67,9 @@ namespace Hawk{
 		id,
 		number,
 
+		keyword_func,
+		keyword_return,
+
 		type_int,
 
 		assign,
@@ -77,6 +80,8 @@ namespace Hawk{
 		semicolon,
 		open_paren,
 		close_paren,
+		open_brace,
+		close_brace,
 	};
 
 

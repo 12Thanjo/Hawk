@@ -103,11 +103,11 @@ namespace Hawk{
 
 
 	bool Tokenizer::process_id(){
-		if(this->is_letter()){
+		if(this->is_letter() || this->character == '_'){
 			this->move_while([&](){
 				auto peek = this->stream.peek();
 				if(peek.has_value()){
-					return this->is_letter(peek.value()) || this->is_number(peek.value());
+					return this->is_letter(peek.value()) || this->is_number(peek.value()) || peek.value() == '_';
 				}else{
 					cmd::fatal("Attempted to read past the end of the file");
 					this->error();
@@ -118,6 +118,13 @@ namespace Hawk{
 
 			if(this->token_val == "int"){
 				this->make_token(Token::Type::type_int);
+
+
+			}else if(this->token_val == "func"){
+				this->make_token(Token::Type::keyword_func);
+			}else if(this->token_val == "return"){
+				this->make_token(Token::Type::keyword_return);
+			
 			}else{
 				this->make_token(Token::Type::id);
 			}
@@ -175,6 +182,8 @@ namespace Hawk{
 			case ';': this->make_token(Token::Type::semicolon); return true;
 			case '(': this->make_token(Token::Type::open_paren); return true;
 			case ')': this->make_token(Token::Type::close_paren); return true;
+			case '{': this->make_token(Token::Type::open_brace); return true;
+			case '}': this->make_token(Token::Type::close_brace); return true;
 		};
 
 
@@ -304,6 +313,9 @@ namespace Hawk{
 
 			case Tokenizer::Token::Type::id: return "id";
 			case Tokenizer::Token::Type::number: return "number";
+
+			case Tokenizer::Token::Type::keyword_func: return "func";
+			case Tokenizer::Token::Type::keyword_return: return "return";
 
 			case Tokenizer::Token::Type::type_int: return "int";
 

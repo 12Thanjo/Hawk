@@ -55,10 +55,16 @@ namespace Hawk{
 
 		if(this->look().type == TokenType::id){
 			if(this->look(1).type == TokenType::type_def){
+				output = this->parse_var_declaration();
+			}else if(this->look(1).type == TokenType::assign){
 				output = this->parse_assignment();
 			}else if(this->look(1).type == TokenType::open_paren){
-				output = this->parse_func_call();
+				output = this->parse_func_call_stmt();
 			}
+		}else if(this->look().type == TokenType::keyword_func){
+			output = this->parse_func_def();
+		}else if(this->look().type == TokenType::keyword_return){
+			output = this->parse_return();
 		}
 
 		this->assert_type(this->get(), TokenType::semicolon);
@@ -67,7 +73,7 @@ namespace Hawk{
 	};
 
 
-	AST::Stmt Parser::parse_assignment(){
+	AST::Stmt Parser::parse_var_declaration(){
 		auto id = this->get();
 
 		this->assert_type(this->get(), TokenType::type_def);
@@ -75,7 +81,6 @@ namespace Hawk{
 		Tokenizer::Token type(TokenType::none);
 		if( this->is_type(this->look()) ){
 			type = this->get();
-			// this->i += 1;
 		}
 
 		this->assert_type(this->get(), TokenType::assign);
@@ -85,7 +90,7 @@ namespace Hawk{
 		auto expr = this->parse_expr();
 
 		return {
-			AST::Stmt::Type::assign,
+			AST::Stmt::Type::var_decl,
 			new AST::Expr::LR {
 				new AST::Expr::Val{id},
 				type,
@@ -95,19 +100,84 @@ namespace Hawk{
 	};
 
 
-	AST::Stmt Parser::parse_func_call(){
+	AST::Stmt Parser::parse_assignment(){
 		auto id = this->get();
-		auto parens = this->parse_parens();
 
+		this->assert_type(this->get(), TokenType::assign);
+
+		auto expr = this->parse_expr();
 
 		return {
-			AST::Stmt::Type::func_call,
-			new AST::Expr::FuncCall {
+			AST::Stmt::Type::assign,
+			new AST::Expr::LR {
 				new AST::Expr::Val{id},
-				parens
+				Tokenizer::Token{TokenType::none},
+				expr
 			}
 		};
 	};
+
+
+	AST::Stmt Parser::parse_func_call_stmt(){
+		auto func_call = this->parse_func_call();
+
+		return { AST::Stmt::Type::func_call, func_call };
+	};
+
+
+	AST::Stmt Parser::parse_func_def(){
+		this->assert_type(this->get(), TokenType::keyword_func);
+
+		auto id = this->get_id();
+		auto paren_defs = this->parse_paren_defs();
+
+		Tokenizer::Token return_type(TokenType::none);
+		if( this->is_type(this->look()) ){
+			return_type = this->get();
+		}
+
+		auto block = this->parse_block();
+
+		return { 
+			AST::Stmt::Type::func_def, 
+			new AST::Expr::FuncCall{ 
+				new AST::Expr::L{
+					new AST::Expr::Val{id}, 
+					return_type
+				},
+				paren_defs
+			},
+			block 
+		};
+	};
+
+
+	std::vector<AST::Stmt> Parser::parse_block(){
+		std::vector<AST::Stmt> output;
+
+		this->assert_type(this->get(), TokenType::open_brace);
+
+		while(this->look().type != TokenType::close_brace){
+			output.push_back(this->parse_statement());
+		};
+
+		this->assert_type(this->get(), TokenType::close_brace);
+
+		return output;
+	};
+
+
+	AST::Stmt Parser::parse_return(){
+		this->assert_type(this->get(), TokenType::keyword_return);
+
+		auto expr = this->parse_expr();
+
+		return { AST::Stmt::Type::func_return, expr };
+	};
+
+
+
+
 
 
 
@@ -119,7 +189,11 @@ namespace Hawk{
 			output = new AST::Expr::Val(this->get());
 
 		}else if(this->look().type == TokenType::id){
-			output = new AST::Expr::Val(this->get());
+			if(this->look(1).type == TokenType::open_paren){
+				output = parse_func_call();
+			}else{
+				output = new AST::Expr::Val(this->get());
+			}
 
 		}else{
 			cmd::error("Unknown Expr (got type {})", Tokenizer::Token::type_string(this->look().type));
@@ -141,16 +215,41 @@ namespace Hawk{
 	std::vector<AST::Expr*> Parser::parse_parens(){
 		std::vector<AST::Expr*> output;
 
-		this->i += 1;
+		this->assert_type(this->get(), TokenType::open_paren);
 
 		while(this->look().type != TokenType::close_paren){
 			output.push_back(this->parse_expr());
 			// this->i += 1;
 		};
 
-		this->i += 1;
+		this->assert_type(this->get(), TokenType::close_paren);
 
 		return output;
+	};
+
+
+	std::vector<AST::Expr*> Parser::parse_paren_defs(){
+		std::vector<AST::Expr*> output;
+
+		this->assert_type(this->get(), TokenType::open_paren);
+
+		// while(this->look().type != TokenType::close_paren){
+		// 	output.push_back(this->parse_expr());
+		// 	// this->i += 1;
+		// };
+
+		this->assert_type(this->get(), TokenType::close_paren);
+
+		return output;
+	};
+
+
+
+	AST::Expr* Parser::parse_func_call(){
+		auto id = this->get();
+		auto parens = this->parse_parens();
+
+		return new AST::Expr::FuncCall { new AST::Expr::Val{id}, parens };
 	};
 
 
@@ -178,6 +277,16 @@ namespace Hawk{
 	};
 
 
+	//////////////////////////////////////////////////////////////////////
+	// get
+
+
+	Tokenizer::Token Parser::get_id(){
+		this->assert_type(this->look(), TokenType::id);
+		return this->get();
+	};
+
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -197,6 +306,10 @@ namespace Hawk{
 	void AST::Stmt::print(uint indent){
 		cmd::print("{}{} ({})", tabs(indent), "Stmt", (uint)this->type);
 		this->expr->print(indent + 1);
+		cmd::print("{}stmts:", tabs(indent+1));
+		for(auto& stmt : this->stmts){
+			stmt.print(indent+2);
+		}
 	};
 
 
@@ -209,6 +322,18 @@ namespace Hawk{
 		cmd::print("{}Expr::LR ({})", tabs(indent), std::get<std::string>(this->op.value));
 
 		this->left->print(indent + 1);
+		this->right->print(indent + 1);
+	};
+
+	void AST::Expr::L::print(uint indent){
+		cmd::print("{}Expr::L ({})", tabs(indent), std::get<std::string>(this->op.value));
+
+		this->left->print(indent + 1);
+	};
+
+	void AST::Expr::R::print(uint indent){
+		cmd::print("{}Expr::R ({})", tabs(indent), std::get<std::string>(this->op.value));
+
 		this->right->print(indent + 1);
 	};
 

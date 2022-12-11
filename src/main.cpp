@@ -13,7 +13,7 @@ namespace Hawk{
 
 
 	void print_version(){
-		cmd::info("Hawk version: 0.1.1");
+		cmd::info("Hawk version: 0.4.2");
 	};
 	void print_help();
 
@@ -27,7 +27,6 @@ namespace Hawk{
 		bool print_tokens = false;
 		bool print_ast = false;
 		bool print_ir = false;
-		bool interpret = false;
 
 		enum class OutputMode{
 			assembly,
@@ -45,13 +44,17 @@ namespace Hawk{
 			for(int i = 1; i < argv.size(); i++){
 				auto arg = argv[i];
 
-					  if(arg == "-asm"){    output_mode = OutputMode::assembly;
-				}else if(arg == "-exe"){	output_mode = OutputMode::exe; //default
+
+
+					  if(arg == "-c=asm"){   output_mode = OutputMode::assembly;
+				}else if(arg == "-c=exe"){	output_mode = OutputMode::exe; //default
+				}else if(arg == "-c=int"){	output_mode = OutputMode::interpret;
+				}else if(arg == "-c=llvm"){	output_mode = OutputMode::llvm;
+				}else if(arg == "-c=o"){	output_mode = OutputMode::object;
+
 				}else if(arg == "-h"){		print_help(); return 0;
-				}else if(arg == "-i"){		output_mode = OutputMode::interpret;
-				}else if(arg == "-llvm"){	output_mode = OutputMode::llvm;
-				}else if(arg == "-o"){		output_mode = OutputMode::object;
 				}else if(arg == "-v"){		print_version(); return 0;
+
 
 				}else if(arg == "-nc"){	 	cmd::use_no_color();
 
@@ -73,7 +76,7 @@ namespace Hawk{
 		}
 
 		if(!fs::exists(path)){
-			cmd::error("path ({}) doesn't exist", path);
+			cmd::error("path{}");
 			return -1;	
 		}
 
@@ -170,25 +173,29 @@ namespace Hawk{
 		cmd::info("Hawk help:");
 
 		cmd::info("\n\tgeneral usage:");
-		cmd::print("\t\thawk [path/to/file.hawk]");
+		cmd::print("\t\thawk [path/to/file.hawk [-flags...]");
 
 		cmd::info("\n\n\tfunctions:");
-		cmd::print("\t\t-asm:    set output mode to assembly (also runs -llvm)");
-		cmd::print("\n\t\t-exe:    [default] set output mode to a .exe (also runs -llvm and -o)");
-		cmd::print("\n\t\t-h:      help (you're here now)");
-		cmd::print("\n\t\t-i:      run the interpreter (also runs -llvm)");
-		cmd::print("\n\t\t-llvm:   set output mode to llvm IR (Intermediate Representation");
-		cmd::print("\n\t\t-o:      set output mode an object file (also runs -llvm)");
-		cmd::print("\n\t\t-v:      get the version");
+
+		cmd::print("\t\t-c=[mode]:   set the compiler output mode");
+		cmd::print("\t\t\tasm:     set output mode to assembly (also runs -llvm)");
+		cmd::print("\t\t\texe:     [default] set output mode to a .exe (also runs -llvm and -o)");
+		cmd::print("\t\t\tint:     run the interpreter (also runs -llvm)");
+		cmd::print("\t\t\tllvm:    set output mode to llvm IR (Intermediate Representation");
+		cmd::print("\t\t\to:       set output mode an object file (also runs -llvm)");
+
+		cmd::print("");
+		cmd::print("\t\t-h:      help (you're here now)");
+		cmd::print("\t\t-v:      get the version");
 
 
 		cmd::info("\n\n\tflags:");
-		cmd::print("\t\t-nc:     logs without color. If \"-nc\" is put before \"-h\", the help menu will also not be in color");
+		  cmd::print("\t\t-nc:   logs without color. If \"-nc\" is put before \"-h\", the help menu will also not be in color");
 
 		cmd::info("\n\n\tdebug:");
 		cmd::print("\t\t-ast:	 show the AST (Abstract Syntax Tree)");
-		cmd::print("\n\t\t-ir:     show the llvm IR (Intermediate Representation)");
-		cmd::print("\n\t\t-tokens: show the program tokens");
+		cmd::print("\t\t-ir:     show the llvm IR (Intermediate Representation)");
+		cmd::print("\t\t-tokens: show the program tokens");
 
 		cmd::print("\n");
 	};

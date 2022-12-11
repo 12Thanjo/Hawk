@@ -26,7 +26,7 @@ namespace Hawk{
 			void compile_exe();
 
 		private:
-			void parse_stmts();
+			void parse_stmt(AST::Stmt& stmt);
 
 			std::string get_expr_id_str(AST::Expr* expr);
 			llvm::Value* get_expr_value(AST::Expr* expr);
