@@ -1,5 +1,8 @@
 # Changelog
 
+### 0.4.3
+- added void type
+
 ### 0.4.2
 - added functions
 - added support for underscores (\_) in id names

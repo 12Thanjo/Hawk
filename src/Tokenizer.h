@@ -70,6 +70,7 @@ namespace Hawk{
 		keyword_func,
 		keyword_return,
 
+		type_void,
 		type_int,
 
 		assign,

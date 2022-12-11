@@ -4,6 +4,7 @@
 #include "CharacterStream.h"
 #include "Tokenizer.h"
 #include "Parser.h"
+#include "StaticAnalyzer.h"
 #include "LLVMBuilder.h"
 
 
@@ -13,7 +14,7 @@ namespace Hawk{
 
 
 	void print_version(){
-		cmd::info("Hawk version: 0.4.2");
+		cmd::info("Hawk version: 0.4.3");
 	};
 	void print_help();
 
@@ -45,8 +46,7 @@ namespace Hawk{
 				auto arg = argv[i];
 
 
-
-					  if(arg == "-c=asm"){   output_mode = OutputMode::assembly;
+					  if(arg == "-c=asm"){  output_mode = OutputMode::assembly;
 				}else if(arg == "-c=exe"){	output_mode = OutputMode::exe; //default
 				}else if(arg == "-c=int"){	output_mode = OutputMode::interpret;
 				}else if(arg == "-c=llvm"){	output_mode = OutputMode::llvm;
@@ -54,7 +54,6 @@ namespace Hawk{
 
 				}else if(arg == "-h"){		print_help(); return 0;
 				}else if(arg == "-v"){		print_version(); return 0;
-
 
 				}else if(arg == "-nc"){	 	cmd::use_no_color();
 
@@ -76,7 +75,7 @@ namespace Hawk{
 		}
 
 		if(!fs::exists(path)){
-			cmd::error("path{}");
+			cmd::error("file \"{}\" does not exist", path);
 			return -1;	
 		}
 
@@ -110,6 +109,9 @@ namespace Hawk{
 		}
 
 
+
+
+		auto static_analyzer = StaticAnalyzer(parser.statements);
 		if(error_free){
 			if(print_ast){
 				cmd::info("\nAST:");
@@ -120,7 +122,12 @@ namespace Hawk{
 				cmd::log("-------------------------------\n");
 			}
 
+			static_analyzer.begin();
+			error_free = static_analyzer.success();
+		}
 
+
+		if(error_free){
 			auto llvm_builder = LLVMBuilder(parser.statements, "HAWK_testing_llvm");
 			llvm_builder.build_ir();
 			llvm_builder.save_ir_to_file();

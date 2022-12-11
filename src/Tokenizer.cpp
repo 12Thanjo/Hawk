@@ -115,8 +115,9 @@ namespace Hawk{
 				return false;
 			});
 
-
-			if(this->token_val == "int"){
+			if(this->token_val == "void"){
+				this->make_token(Token::Type::type_void);
+			}else if(this->token_val == "int"){
 				this->make_token(Token::Type::type_int);
 
 
@@ -317,6 +318,7 @@ namespace Hawk{
 			case Tokenizer::Token::Type::keyword_func: return "func";
 			case Tokenizer::Token::Type::keyword_return: return "return";
 
+			case Tokenizer::Token::Type::type_void: return "void";
 			case Tokenizer::Token::Type::type_int: return "int";
 
 			case Tokenizer::Token::Type::assign: return "=";
@@ -327,6 +329,8 @@ namespace Hawk{
 			case Tokenizer::Token::Type::semicolon: return ";";
 			case Tokenizer::Token::Type::open_paren: return "(";
 			case Tokenizer::Token::Type::close_paren: return ")";
+			case Tokenizer::Token::Type::open_brace: return "{";
+			case Tokenizer::Token::Type::close_brace: return "}";
 			default: return "UNKNOWNK";
 		};
 	};

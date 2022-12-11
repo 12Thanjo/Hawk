@@ -9,8 +9,23 @@ namespace Hawk{
 
 	LLVMBuilder::LLVMBuilder(std::vector<AST::Stmt>& statements, const std::string& module_name)
 		: stmts(statements),
-		context(), builder(context), module(module_name, context)
-	{};
+		context(), builder(context), module(module_name, context) {
+
+		this->types["void"] = this->builder.getVoidTy();
+
+		this->types["i1"] = this->builder.getInt1Ty();
+		this->types["i8"] = this->builder.getInt8Ty();
+		this->types["i16"] = this->builder.getInt16Ty();
+		this->types["i32"] = this->builder.getInt32Ty();
+		this->types["i64"] = this->builder.getInt64Ty();
+		this->types["i128"] = this->builder.getInt128Ty();
+
+		this->types["i1p"] = llvm::Type::getInt1PtrTy(this->context, 0);
+		this->types["i8p"] = this->builder.getInt8PtrTy();
+		this->types["i16p"] = llvm::Type::getInt16PtrTy(this->context, 0);
+		this->types["i32p"] = llvm::Type::getInt32PtrTy(this->context, 0);
+		this->types["i64p"] = llvm::Type::getInt64PtrTy(this->context, 0);
+	};
 	
 
 	LLVMBuilder::~LLVMBuilder(){
@@ -28,24 +43,15 @@ namespace Hawk{
 
 
 		// use libc's printf function
-		auto printf_prototype = llvm::FunctionType::get(builder.getInt8PtrTy(), true);
+		auto printf_prototype = llvm::FunctionType::get(this->types["i8p"], true);
 		this->functions["printf"] = llvm::Function::Create(printf_prototype, llvm::Function::ExternalLinkage, "printf", module);
 
 
-		// auto prototype = llvm::FunctionType::get(this->builder.getInt32Ty(), false);
-		// llvm::Function* main_fn = llvm::Function::Create(prototype, llvm::Function::ExternalLinkage, "main", this->module);
-		// llvm::BasicBlock* body = llvm::BasicBlock::Create(this->context, "body", main_fn);
-		// this->builder.SetInsertPoint(body);
-
-		// auto format_str = this->builder.CreateGlobalStringPtr("hello world\n");
-		// this->builder.CreateCall(printf_fn, { format_str });
 
 		for(auto& stmt : this->stmts){
 			this->parse_stmt(stmt);
 		}
 
-		// auto ret = llvm::ConstantInt::get(this->builder.getInt32Ty(), 0);
-		// this->builder.CreateRet(ret);
 	};
 
 
@@ -86,23 +92,8 @@ namespace Hawk{
 
 		switch(stmt.type){
 			case AST::Stmt::Type::func_call: {
-				auto func_call = static_cast<AST::Expr::FuncCall*>(stmt.expr);
-				auto func_id = this->get_expr_id_str(func_call->id);
+				this->get_expr_value(stmt.expr);
 
-
-				auto params = std::vector<llvm::Value*>();
-
-				if(func_id == "printf"){
-					params.push_back( builder.CreateGlobalStringPtr("num: %lli\n") );
-				}
-
-
-				for(auto* expr : func_call->exprs){
-					params.push_back(this->get_expr_value(expr));
-				}
-
-
-				this->builder.CreateCall(this->functions[func_id], params);
 			} break; case AST::Stmt::Type::var_decl: {
 				auto* lr = static_cast<AST::Expr::LR*>(stmt.expr);
 				std::string id = this->get_expr_id_str(lr->left);
@@ -112,6 +103,7 @@ namespace Hawk{
 				this->builder.CreateStore(llvm_num, alloca);
 
 				this->variables[id] = alloca;
+
 			} break; case AST::Stmt::Type::assign: {
 				auto* lr = static_cast<AST::Expr::LR*>(stmt.expr);
 				std::string id = this->get_expr_id_str(lr->left);
@@ -127,10 +119,10 @@ namespace Hawk{
 				auto* id = static_cast<AST::Expr::L*>(func_call->id);
 
 				std::string id_name = this->get_expr_id_str(id->left);
-				Tokenizer::Token return_type = id->op;
+				auto return_type = this->get_type(id->op);
 
 
-				auto prototype = llvm::FunctionType::get(this->builder.getInt64Ty(), false);
+				auto prototype = llvm::FunctionType::get(return_type, false);
 				llvm::Function* func = llvm::Function::Create(prototype, llvm::Function::ExternalLinkage, id_name, this->module);
 				this->functions[id_name] = func;
 
@@ -141,9 +133,13 @@ namespace Hawk{
 					this->parse_stmt(stmt);
 				}
 
+				// probably will get rid of this as it will be done by sematic analysis
+				if(return_type == this->types["void"]){
+					this->builder.CreateRet(0);
+				}
+
 			} break; case AST::Stmt::Type::func_return: {
 				auto* return_value = this->get_expr_value(stmt.expr);
-
 				this->builder.CreateRet(return_value);
 
 			} break; default: {
@@ -199,6 +195,29 @@ namespace Hawk{
 		}
 
 	};
+
+
+
+
+
+
+
+	llvm::Type* LLVMBuilder::get_type(Tokenizer::Token token){
+		switch(token.type){
+			case TokenType::type_int: return this->types["i64"];
+			case TokenType::type_void: return this->types["void"];
+		};
+
+		auto type_str = std::get<std::string>(token.value);
+
+		if(!this->types.contains(type_str)){
+			cmd::error("Recieved unknown type ({})", type_str);
+		}
+
+		return this->types[type_str];
+
+	};
+
 
 	
 };

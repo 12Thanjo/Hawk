@@ -5,6 +5,7 @@
 
 #pragma warning (push, 0)
 	#include <llvm/IR/IRBuilder.h>
+	#include <llvm/IR/Type.h>
 #pragma warning (pop)
 
 
@@ -31,6 +32,9 @@ namespace Hawk{
 			std::string get_expr_id_str(AST::Expr* expr);
 			llvm::Value* get_expr_value(AST::Expr* expr);
 
+
+			llvm::Type* get_type(Tokenizer::Token token);
+
 	
 		private:
 			std::vector<AST::Stmt>& stmts;
@@ -41,6 +45,7 @@ namespace Hawk{
 
 			std::unordered_map<std::string, llvm::Function*> functions;
 			std::unordered_map<std::string, llvm::AllocaInst*> variables;
+			std::unordered_map<std::string, llvm::Type*> types;
 	};
 	
 };

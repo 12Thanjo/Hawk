@@ -131,7 +131,7 @@ namespace Hawk{
 		auto id = this->get_id();
 		auto paren_defs = this->parse_paren_defs();
 
-		Tokenizer::Token return_type(TokenType::none);
+		Tokenizer::Token return_type(TokenType::type_void);
 		if( this->is_type(this->look()) ){
 			return_type = this->get();
 		}
@@ -259,7 +259,8 @@ namespace Hawk{
 	bool Parser::is_type(const Tokenizer::Token& token){
 		switch(token.type){
 			case TokenType::type_int:
-			case TokenType::id:
+			case TokenType::type_void:
+			// case TokenType::id:
 				return true;
 			default:
 				return false;
