@@ -1,0 +1,10 @@
+.vs/
+bin/
+tests/
+
+*.user
+*.sublime-project
+*.sublime-workspace
+*.vcxproj
+*.vcxproj.filters
+*.sln
