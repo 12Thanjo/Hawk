@@ -3,6 +3,8 @@
 
 
 #include "CharacterStream.h"
+#include "Tokenizer.h"
+#include "Parser.h"
 
 
 namespace Hawk{
@@ -41,7 +43,7 @@ namespace Hawk{
 
 
 	void Tokenizer::make_token(Token::Type type){
-		this->tokens.emplace_back(type, this->token_val, this->stream.get_line(), this->stream.get_collumn());
+		this->tokens.emplace_back(type, this->stream.get_line(), this->stream.get_collumn(), this->token_val);
 	};
 
 
@@ -119,12 +121,22 @@ namespace Hawk{
 				this->make_token(Token::Type::type_void);
 			}else if(this->token_val == "int"){
 				this->make_token(Token::Type::type_int);
+			}else if(this->token_val == "bool"){
+				this->make_token(Token::Type::type_bool);
 
 
 			}else if(this->token_val == "func"){
 				this->make_token(Token::Type::keyword_func);
 			}else if(this->token_val == "return"){
 				this->make_token(Token::Type::keyword_return);
+			}else if(this->token_val == "if"){
+				this->make_token(Token::Type::keyword_if);
+			}else if(this->token_val == "else"){
+				this->make_token(Token::Type::keyword_else);
+
+
+			}else if(this->token_val == "true" || this->token_val == "false"){
+				this->make_token(Token::Type::literal_bool);
 			
 			}else{
 				this->make_token(Token::Type::id);
@@ -152,7 +164,7 @@ namespace Hawk{
 			});
 
 
-			this->make_token(Token::Type::number);
+			this->make_token(Token::Type::literal_number);
 			return true;
 		}
 
@@ -169,6 +181,9 @@ namespace Hawk{
 		}else if(this->character == ':'){
 			this->make_token(Token::Type::type_def);
 			return true;
+		}else if(this->character == '@'){
+			this->make_token(Token::Type::const_type_def);
+			return true;
 		}else if(this->character == '+'){
 			this->make_token(Token::Type::op_plus);
 			return true;
@@ -180,10 +195,11 @@ namespace Hawk{
 	bool Tokenizer::process_punctuation(){
 
 		switch(this->character){
-			case ';': this->make_token(Token::Type::semicolon); return true;
-			case '(': this->make_token(Token::Type::open_paren); return true;
+			case ';': this->make_token(Token::Type::semicolon);   return true;
+			case ',': this->make_token(Token::Type::comma); 	  return true;
+			case '(': this->make_token(Token::Type::open_paren);  return true;
 			case ')': this->make_token(Token::Type::close_paren); return true;
-			case '{': this->make_token(Token::Type::open_brace); return true;
+			case '{': this->make_token(Token::Type::open_brace);  return true;
 			case '}': this->make_token(Token::Type::close_brace); return true;
 		};
 
@@ -306,34 +322,6 @@ namespace Hawk{
 	};
 
 
-
-
-	std::string Tokenizer::Token::type_string(Tokenizer::Token::Type type){
-		switch(type){
-			case Tokenizer::Token::Type::none: return "none";
-
-			case Tokenizer::Token::Type::id: return "id";
-			case Tokenizer::Token::Type::number: return "number";
-
-			case Tokenizer::Token::Type::keyword_func: return "func";
-			case Tokenizer::Token::Type::keyword_return: return "return";
-
-			case Tokenizer::Token::Type::type_void: return "void";
-			case Tokenizer::Token::Type::type_int: return "int";
-
-			case Tokenizer::Token::Type::assign: return "=";
-			case Tokenizer::Token::Type::type_def: return ":";
-
-			case Tokenizer::Token::Type::op_plus: return "+";
-
-			case Tokenizer::Token::Type::semicolon: return ";";
-			case Tokenizer::Token::Type::open_paren: return "(";
-			case Tokenizer::Token::Type::close_paren: return ")";
-			case Tokenizer::Token::Type::open_brace: return "{";
-			case Tokenizer::Token::Type::close_brace: return "}";
-			default: return "UNKNOWNK";
-		};
-	};
 
 }
 

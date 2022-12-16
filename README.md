@@ -8,9 +8,9 @@ I'm creating this language with the following in mind. Hopefully I can get all o
 
 
 ### Features:
-- good optimization (some code automatically run at compile time)
 - support both static and runtime code (with no built in interpreter)
 - good compile time
+- good optimization (some code automatically run at compile time)
 - no garbage collector
 - minimal to no preprcessor
 - built in static analysis / bug finder
@@ -21,7 +21,6 @@ I'm creating this language with the following in mind. Hopefully I can get all o
 - good and readable error messages
 - "simple things should be simple" (Bjarne Stroustrup), it should be easy to teach a beginner
 - minimize the ammount of boilerplate needed
-- build for modern systems
 
 
 ## Building:

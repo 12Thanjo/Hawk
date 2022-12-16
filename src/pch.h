@@ -39,9 +39,9 @@ using uint = unsigned int;
 // internal
 
 
-#include "core/fmt.h"
-#include "core/cmd.h"
-#include "core/files.h"
+#include "./core/fmt.h"
+#include "./core/cmd.h"
+#include "./core/files.h"
 
 
 

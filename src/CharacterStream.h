@@ -4,7 +4,7 @@ namespace Hawk{
 	
 	class CharacterStream{
 		public:
-			CharacterStream(std::string file_input) : file(file_input) {};
+			CharacterStream(const std::string& file_input) : file(file_input) {};
 			~CharacterStream() = default;
 	
 			bool end();
@@ -16,7 +16,7 @@ namespace Hawk{
 			inline uint get_collumn() const { return this->collumn; };
 
 		private:
-			std::string file;
+			const std::string& file;
 			uint i = 0;
 
 			uint line = 1;

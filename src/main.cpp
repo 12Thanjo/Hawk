@@ -4,8 +4,8 @@
 #include "CharacterStream.h"
 #include "Tokenizer.h"
 #include "Parser.h"
-#include "StaticAnalyzer.h"
-#include "LLVMBuilder.h"
+#include "SemanticAnalyzer.h"
+#include "Compiler.h"
 
 
 
@@ -14,7 +14,7 @@ namespace Hawk{
 
 
 	void print_version(){
-		cmd::info("Hawk version: 0.4.3");
+		cmd::info("Hawk version: 0.7.5");
 	};
 	void print_help();
 
@@ -24,7 +24,7 @@ namespace Hawk{
 
 		fs::path path;
 
-
+		bool print_feedback = false;
 		bool print_tokens = false;
 		bool print_ast = false;
 		bool print_ir = false;
@@ -55,6 +55,7 @@ namespace Hawk{
 				}else if(arg == "-h"){		print_help(); return 0;
 				}else if(arg == "-v"){		print_version(); return 0;
 
+				}else if(arg == "-f"){		print_feedback = true;
 				}else if(arg == "-nc"){	 	cmd::use_no_color();
 
 				}else if(arg == "-ast"){	print_ast = true;
@@ -80,8 +81,7 @@ namespace Hawk{
 		}
 
 
-		auto file = files::read(path);
-
+		std::string file = files::read(path);
 		bool error_free = true;
 
 		auto char_stream = CharacterStream(file);
@@ -98,7 +98,7 @@ namespace Hawk{
 				cmd::info("\nTokens:");
 				cmd::log("-------------------------------");
 				for(auto& token : tokenizer.tokens){
-					cmd::print("token: {}", std::get<std::string>(token.value));
+					cmd::print("token: {}", token.value);
 				}
 				cmd::log("-------------------------------\n");
 			}
@@ -110,56 +110,63 @@ namespace Hawk{
 
 
 
-
-		auto static_analyzer = StaticAnalyzer(parser.statements);
+		auto semantic_analyzer = SemanticAnalyzer(parser.statements);
 		if(error_free){
+
 			if(print_ast){
 				cmd::info("\nAST:");
 				cmd::log("-------------------------------");
-				for(auto& stmt : parser.statements){
-					stmt.print(0);
+				for(auto* stmt : parser.statements){
+					stmt->print(0);
 				}
 				cmd::log("-------------------------------\n");
 			}
 
-			static_analyzer.begin();
-			error_free = static_analyzer.success();
+			semantic_analyzer.begin();
+			error_free = semantic_analyzer.get_error_count() == 0;
+			bool warning_free = semantic_analyzer.get_warning_count() == 0;
+
+			if(!error_free){
+				cmd::error("\n[Errors: {}, Warnings: {}]\n", semantic_analyzer.get_error_count(), semantic_analyzer.get_warning_count());
+			}else if(!warning_free){
+				cmd::warning("\n[Errors: 0, Warnings: {}]\n", semantic_analyzer.get_warning_count());
+			}
 		}
 
 
 		if(error_free){
-			auto llvm_builder = LLVMBuilder(parser.statements, "HAWK_testing_llvm");
-			llvm_builder.build_ir();
-			llvm_builder.save_ir_to_file();
+			auto compiler = Compiler(semantic_analyzer.global_vars, semantic_analyzer.functions, "hawk_module");
+			compiler.build_ir();
+			compiler.save_ir_to_file();
 
 
 			if(print_ir){
 				cmd::info("\nLLVM IR:");
 				cmd::log("-------------------------------");
-				llvm_builder.print_ir();
+				compiler.print_ir();
 				cmd::log("-------------------------------\n");
 			}
 
 
 
 			if(output_mode == OutputMode::assembly){
-				llvm_builder.compile_to_asm();
+				compiler.compile_to_asm();
 
 			}else if(output_mode == OutputMode::exe){
-				llvm_builder.compile_to_obj();
-				llvm_builder.compile_exe();
+				compiler.compile_to_obj();
+				compiler.compile_exe();
 
 			}else if(output_mode == OutputMode::interpret){
 				cmd::info("\nInterpreter:");
 				cmd::log("-------------------------------");
-				llvm_builder.run_interpreter();
+				compiler.run_interpreter();
 				cmd::log("-------------------------------\n");
 
 			}else if(output_mode == OutputMode::llvm){
 				// do nothing
 
 			}else if(output_mode == OutputMode::object){
-				llvm_builder.compile_to_obj();
+				compiler.compile_to_obj();
 			}
 
 
@@ -167,6 +174,13 @@ namespace Hawk{
 		}
 
 
+		if(print_feedback){
+			if(error_free){
+				cmd::success("Hawk Compiled Successfully");
+			}else{
+				cmd::error("Hawk Compilation Failed");
+			}
+		}
 
 		return error_free ? 0 : -1;
 	};
@@ -180,7 +194,7 @@ namespace Hawk{
 		cmd::info("Hawk help:");
 
 		cmd::info("\n\tgeneral usage:");
-		cmd::print("\t\thawk [path/to/file.hawk [-flags...]");
+		cmd::print("\t\thawk [path/to/file.hawk] [-flags...]");
 
 		cmd::info("\n\n\tfunctions:");
 
@@ -197,6 +211,7 @@ namespace Hawk{
 
 
 		cmd::info("\n\n\tflags:");
+		  cmd::print("\t\t-f:    print feedback at the end of compilation (success / fail)");
 		  cmd::print("\t\t-nc:   logs without color. If \"-nc\" is put before \"-h\", the help menu will also not be in color");
 
 		cmd::info("\n\n\tdebug:");
@@ -209,9 +224,6 @@ namespace Hawk{
 
 
 }
-
-
-
 
 int main(int argc, const char *args[]){
 	return Hawk::main(std::vector<std::string>(args, args + argc));

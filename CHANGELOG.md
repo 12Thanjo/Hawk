@@ -1,5 +1,13 @@
 # Changelog
 
+### 0.7.6
+- completely overhauled the parser and compiler
+- added the SemanticAnalyzer
+- added the -f flag
+- added warnings
+- added the bool type
+- added global variables
+
 ### 0.4.3
 - added void type
 
