@@ -125,6 +125,27 @@ namespace Hawk{
 			
 			this->enter_scope();
 
+			for(auto* param : func_def->params->params){
+				auto param_name = param->id->token.value;
+
+				if(this->in_current_scope(param_name)){
+					auto first_definition = this->in_current_scope(param_name)->id->token;
+					this->error(param->id);
+					cmd::error("\tParameter({}) was already defined at <{}, {}> ", param_name, first_definition.line, first_definition.collumn);
+					return;
+				}
+
+				if(this->in_scope(param_name)){
+					auto first_definition = this->in_scope(param_name)->id->token;
+					this->warning(param->id);
+					cmd::warning("\tParameter ({}) was already defined in a parent scope at <{}, {}> ", param_name, first_definition.line, first_definition.collumn);
+					cmd::warning("\tThis may cause unexpected behavior");
+				}
+
+				this->add_to_scope(param_name, new AST::VarDecl(param->id, param->type, nullptr));
+
+			}
+
 			for(auto* stmt : func_def->block->stmts){
 				this->func_checking_type_inference_attempt_impl(func_def, stmt);
 			}
@@ -157,6 +178,10 @@ namespace Hawk{
 		}
 
 		switch(stmt->get_type()){
+
+			//////////////////////////////////////////////////////////////////////
+			// VarDecl
+
 			case AST::StmtType::VarDecl: {
 				auto var_decl = static_cast<AST::VarDecl*>(stmt);
 				auto var_name = var_decl->id->token.value;
@@ -178,8 +203,13 @@ namespace Hawk{
 
 				if(var_decl->type != nullptr){ return; };
 
+
+
+
 				if(var_decl->value->get_type() == AST::ExprType::Literal || var_decl->value->get_type() == AST::ExprType::Binary){
 					var_decl->type = this->get_expr_type(var_decl->value);
+
+
 				}else if(var_decl->value->get_type() == AST::ExprType::Id){
 					auto id_token = static_cast<AST::Id*>(var_decl->value)->token;
 
@@ -190,25 +220,43 @@ namespace Hawk{
 					}
 
 					var_decl->type = this->get_expr_type(var_decl->value);
+
+
+				}else if(var_decl->value->get_type() == AST::ExprType::FuncCall){
+					auto* func_call = static_cast<AST::FuncCall*>(var_decl->value);
+					auto func_call_name = func_call->id->token.value;
+
+					this->func_call_type_inference(func_call);
+
+					var_decl->type = this->functions[func_call_name]->return_type;
+
+
 				}else{
 					cmd::fatal("Compiler Fail: Received unknown expr type (SemanticAnalyzer, line: {})", __LINE__);
 					this->error(var_decl->value);
 					return;
 				}
 
+
+
 			} break;
 
+
 			case AST::StmtType::VarAssign: break;
+
+			//////////////////////////////////////////////////////////////////////
+			// FuncCallStmt
+
 			case AST::StmtType::FuncCallStmt: {
 				auto* func_call_stmt = static_cast<AST::FuncCallStmt*>(stmt);
 				auto* func_call = static_cast<AST::FuncCall*>(func_call_stmt->expr);
-				auto func_call_name = func_call->id->token.value;
 
-				if(!this->functions.contains(func_call_name) && func_call_name != "printf"){
-					this->error(func_call);
-					cmd::error("\tFunction ({}) is not defined", func_call_name);
-				}
+				this->func_call_type_inference(func_call);
+
 			} break;
+
+			//////////////////////////////////////////////////////////////////////
+			// ReturnStmt
 
 			case AST::StmtType::ReturnStmt: {
 				auto return_stmt = static_cast<AST::ReturnStmt*>(stmt);
@@ -228,6 +276,8 @@ namespace Hawk{
 
 			}break;
 
+			//////////////////////////////////////////////////////////////////////
+			// FuncDef
 
 			case AST::StmtType::FuncDef: {
 				this->error(stmt);
@@ -236,6 +286,8 @@ namespace Hawk{
 				return;
 			} break;
 
+			//////////////////////////////////////////////////////////////////////
+			// Conditional
 
 			case AST::StmtType::Conditional: {
 				auto conditional = static_cast<AST::Conditional*>(stmt);
@@ -250,6 +302,9 @@ namespace Hawk{
 				}
 			}break;
 
+			//////////////////////////////////////////////////////////////////////
+			// Block
+
 			case AST::StmtType::Block: {
 				this->enter_scope();
 				for(auto* block_stmt : static_cast<AST::Block*>(stmt)->stmts){
@@ -258,6 +313,8 @@ namespace Hawk{
 				this->leave_scope();
 			} break;
 
+			//////////////////////////////////////////////////////////////////////
+			// default
 
 			default: {
 				cmd::fatal("Compiler Fail: Received unknown statement type (SemanticAnalyzer, line: {})", __LINE__);
@@ -265,6 +322,61 @@ namespace Hawk{
 			}
 		};
 	};
+
+
+
+
+
+
+
+	void SemanticAnalyzer::func_call_type_inference(AST::FuncCall* func_call){
+		auto func_call_name = func_call->id->token.value;
+
+		if(func_call_name == "printf"){
+			return;
+		}
+
+		if(!this->functions.contains(func_call_name)){
+			this->error(func_call);
+			cmd::error("\tFunction ({}) is not defined", func_call_name);
+			return;
+		}
+
+		auto function = this->functions[func_call_name];
+
+		auto& call_args = func_call->params->params;
+		auto call_arg_count = call_args.size();
+
+		auto& func_args = function->params->params;
+		auto func_arg_count = func_args.size();
+
+
+
+		if(call_arg_count != func_arg_count){
+			this->error(func_call);
+			cmd::error("\tInvalid number of function call arguments");
+			cmd::error("\tFunction ({}) has ({}) arguments, recieved ({})", func_call_name, func_arg_count, call_arg_count);
+			return;
+		}
+
+
+		for(int i = 0; i < call_arg_count; i++){
+			if(!this->same_expr_type(
+				this->get_expr_type(call_args[i]),
+				func_args[i]->type
+			)){
+				this->error(func_call);
+				cmd::error("\tIncorrect function argument type in function ({})", func_call_name);
+				cmd::error("\tArgument ({}/{}) is ({}), recieved ({})", i + 1, func_arg_count, func_args[i]->type->token.value, this->get_expr_type(call_args[i])->token.value);
+				return;
+			}
+		}
+
+
+	};
+
+
+
 
 
 
@@ -329,7 +441,19 @@ namespace Hawk{
 
 			} break;case AST::StmtType::FuncDef: {
 				auto func_def = static_cast<AST::FuncDef*>(stmt);
+
+				this->enter_scope();
+
+				for(auto* param : func_def->params->params){
+					auto param_name = param->id->token.value;
+
+					this->add_to_scope(param_name, new AST::VarDecl(param->id, param->type, nullptr));
+
+				}
+
 				this->final_check_all_impl(func_def->block);
+
+				this->leave_scope();
 
 			} break;case AST::StmtType::Conditional: {
 				auto conditional = static_cast<AST::Conditional*>(stmt);

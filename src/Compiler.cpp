@@ -46,8 +46,12 @@ namespace Hawk{
 			auto return_type_str = func_def->return_type->token.value;
 			auto return_type = this->types[return_type_str];
 
+			std::vector<llvm::Type*> params;
+			for(auto* param : func_def->params->params){
+				params.push_back(this->types[param->type->token.value]);
+			}
 
-			auto prototype = llvm::FunctionType::get(return_type, false);
+			auto prototype = llvm::FunctionType::get(return_type, params, false);
 			llvm::Function* function = llvm::Function::Create(prototype, llvm::Function::ExternalLinkage, name, this->module);
 			llvm::BasicBlock* body = llvm::BasicBlock::Create(this->context, "entry", function);
 			this->builder.SetInsertPoint(body);
@@ -56,9 +60,27 @@ namespace Hawk{
 			this->llvm_functions[name] = function;
 
 			this->enter_scope();
-			for(auto* stmt : func_def->block->stmts){
-				this->parse_stmt(stmt, func_def);
-			}
+
+				uint counter = 0;
+				auto ast_params = func_def->params->params;
+				for(auto& arg : function->args()){
+					auto arg_name = ast_params[counter]->id->token.value;
+					auto arg_type = this->types[ast_params[counter]->type->token.value];
+
+
+					llvm::IRBuilder<> temp_builder(body, body->begin());
+					auto alloca = temp_builder.CreateAlloca(arg_type, nullptr, arg_name);
+
+					this->builder.CreateStore(&arg, alloca);
+
+					this->add_to_scope(arg_name, alloca);
+
+					counter += 1;
+				}
+
+				for(auto* stmt : func_def->block->stmts){
+					this->parse_stmt(stmt, func_def);
+				}
 			this->leave_scope();
 
 
@@ -104,11 +126,10 @@ namespace Hawk{
 				this->add_to_scope(var_name, alloca);
 
 			} break; case AST::StmtType::ReturnStmt: {
-				auto return_type_str = func_def->return_type->token.value;
-				auto return_type = this->types[return_type_str];
+				auto* return_stmt = static_cast<AST::ReturnStmt*>(stmt);
+				auto* return_value = this->get_llvm_value(return_stmt->expr);
 
-				auto ret = llvm::ConstantInt::get(return_type, 0);
-				builder.CreateRet(ret);
+				builder.CreateRet(return_value);
 				this->just_returned = true;
 
 			} break; case AST::StmtType::VarAssign: {
@@ -122,17 +143,24 @@ namespace Hawk{
 			} break; case AST::StmtType::FuncCallStmt: {
 				auto func_call = static_cast<AST::FuncCallStmt*>(stmt)->expr;
 				auto func_name = func_call->id->token.value;
+				auto params = func_call->params->params;
 
 				if(func_name == "printf"){
 					auto format_str = builder.CreateGlobalStringPtr("Printed from libc::printf (%lli)\n");
 
-					auto params = func_call->params->params;
 					auto first = params[0]->expr;
 					auto val = this->get_llvm_value(params[0]);
 
 					builder.CreateCall(this->llvm_functions["printf"], { format_str, val });
 				}else{
-					builder.CreateCall(this->llvm_functions[func_name], {});
+
+					std::vector<llvm::Value*> arguments;
+					arguments.reserve(params.size());
+					for(auto* param : params){
+						arguments.push_back(this->get_llvm_value(param));
+					}
+
+					builder.CreateCall(this->llvm_functions[func_name], arguments);
 				}
 
 			} break; case AST::StmtType::Block: {
@@ -242,8 +270,17 @@ namespace Hawk{
 				}
 
 			} break;case AST::ExprType::FuncCall: {
-				auto func_name = static_cast<AST::FuncCall*>(expr)->id->token.value;
-				return this->builder.CreateCall(this->llvm_functions[func_name], {});
+				auto func_call = static_cast<AST::FuncCall*>(expr);
+				auto func_name = func_call->id->token.value;
+				auto params = func_call->params->params;
+
+				std::vector<llvm::Value*> arguments;
+				arguments.reserve(params.size());
+				for(auto* param : params){
+					arguments.push_back(this->get_llvm_value(param));
+				}
+
+				return builder.CreateCall(this->llvm_functions[func_name], arguments);
 
 			} break;case AST::ExprType::Binary: {
 				auto* binary = static_cast<AST::Binary*>(expr);

@@ -14,7 +14,7 @@ namespace Hawk{
 
 
 	void print_version(){
-		cmd::info("Hawk version: 0.9.8");
+		cmd::info("Hawk version: 0.10.2");
 	};
 	void print_help();
 
@@ -23,6 +23,7 @@ namespace Hawk{
 		fs::path program_path = argv[0];
 
 		fs::path path;
+		// fs::path path = program_path.parent_path() / "../../../tests/test.hawk";
 
 		bool print_feedback = false;
 		bool print_tokens = false;

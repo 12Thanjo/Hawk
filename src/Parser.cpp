@@ -303,7 +303,7 @@ namespace Hawk{
 			return nullptr;
 		}
 
-		auto params = this->parse_params();
+		auto params = this->parse_def_params();
 		if(params == nullptr) return nullptr;
 
 
@@ -500,6 +500,51 @@ namespace Hawk{
 	};
 
 
+
+	// DefParams
+	// 		'(' ')'
+	// 		'(' DefParam ')'
+	// 		'(' (DefParam ',')+ DefParam ')'
+	AST::DefParams* Parser::parse_def_params(){
+		EXPECT(TokenType::open_paren);
+
+		auto params = new AST::DefParams(this->peek(-1));
+
+		while(this->peek().type != TokenType::close_paren){
+			if(params->params.size() > 0){
+				EXPECT(TokenType::comma);
+			}
+
+			auto* param = this->parse_def_param();
+			if(param == nullptr){
+				ERROR("Expected parameter definition in parameter list, got ({})");
+				return nullptr;
+			}
+
+			params->params.push_back(param);
+		};
+
+		EXPECT(TokenType::close_paren);
+
+		return params;
+	};
+
+
+	// DefParam
+	// 		Id ':' Type
+	AST::DefParam* Parser::parse_def_param(){
+		auto id = this->parse_id();
+		if(id == nullptr) return nullptr;
+
+		EXPECT(TokenType::type_def);
+
+		auto type = this->parse_type();
+		if(type == nullptr) return nullptr;
+
+		return new AST::DefParam(id, type);
+	};
+
+
 	// Literal
 	// 		literal_int
 	// 		literal_bool
@@ -558,11 +603,33 @@ namespace Hawk{
 		}
 	};
 
-
 	void AST::Param::print(uint ident){
-		cmd::log("{}Block:", indentation(ident));
+		cmd::log("{}Param:", indentation(ident));
 		this->expr->print(ident + 1);
 	};
+
+
+	void AST::DefParams::print(uint ident){
+		if(this->params.size() > 0){
+			cmd::log("{}DefParams:", indentation(ident));
+
+			for(auto* param : this->params){
+				param->print(ident + 1);
+			}
+		}else{
+			cmd::log("{}DefParams: (empty)", indentation(ident));
+		}
+	};
+
+
+	void AST::DefParam::print(uint ident){
+		cmd::log("{}DefParam:", indentation(ident));
+		this->id->print(ident + 1);
+		this->type->print(ident + 1);
+	};
+
+
+
 
 	void AST::FuncCall::print(uint ident){
 		cmd::log("{}FuncCall:", indentation(ident));

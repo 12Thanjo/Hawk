@@ -19,6 +19,7 @@ namespace Hawk{
 			void global_var_type_inference_attempt();
 			void func_checking_type_inference_attempt();
 			void func_checking_type_inference_attempt_impl(AST::FuncDef* func_def, AST::Stmt* stmt);
+			void func_call_type_inference(AST::FuncCall* func_call);
 
 			void final_check_all();
 			void final_check_all_impl(AST::Stmt* stmt);

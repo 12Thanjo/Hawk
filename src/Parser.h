@@ -15,6 +15,8 @@ namespace Hawk{
 			Literal,
 			Param,
 			Params,
+			DefParam,
+			DefParams,
 			FuncCall,
 			Binary,
 		};
@@ -55,6 +57,7 @@ namespace Hawk{
 
 
 		struct Param : public Expr {
+			~Param(){ delete this->expr; };
 
 			Expr* expr;
 
@@ -64,6 +67,11 @@ namespace Hawk{
 
 		struct Params : public Expr {
 			Params(Tokenizer::Token token): start(token) {};
+			~Params(){
+				for(auto* param : this->params){
+					delete param;
+				}
+			};
 
 			std::vector<Param*> params;
 			Tokenizer::Token start;
@@ -72,8 +80,41 @@ namespace Hawk{
 			ExprType get_type() override { return ExprType::Params; };
 		};
 
+		struct DefParam : public Expr {
+			DefParam(Id* id, Type* type) : id(id), type(type) {};
+			~DefParam(){
+				delete this->id;
+				delete this->type;
+			};
+
+			Id* id;
+			Type* type;
+
+			void print(uint ident) override;
+			ExprType get_type() override { return ExprType::DefParam; };
+		};
+
+		struct DefParams : public Expr {
+			DefParams(Tokenizer::Token token): start(token) {};
+			~DefParams(){
+				for(auto* param : this->params){
+					delete param;
+				}
+			};
+
+			std::vector<DefParam*> params;
+			Tokenizer::Token start;
+
+			void print(uint ident) override;
+			ExprType get_type() override { return ExprType::Params; };
+		};
+
 		struct FuncCall : public Expr {
 			FuncCall(Id* id, Params* params) : id(id), params(params) {};
+			~FuncCall(){
+				delete this->id;
+				delete this->params;
+			};
 
 			Id* id;
 			Params* params;
@@ -87,6 +128,10 @@ namespace Hawk{
 		struct Binary : public Expr {
 			Binary(Expr* left, Tokenizer::Token op, Expr* right)
 				: left(left), op(op), right(right) {};
+			~Binary(){
+				delete this->left;
+				delete this->right;
+			};
 
 			Expr* left;
 			Tokenizer::Token op;
@@ -122,6 +167,11 @@ namespace Hawk{
 
 		struct Block : public Stmt {
 			Block(Tokenizer::Token token): start(token) {};
+			~Block(){
+				for(auto* stmt : this->stmts){
+					delete stmt;
+				}
+			};
 
 			std::vector<Stmt*> stmts;
 			Tokenizer::Token start;
@@ -134,6 +184,12 @@ namespace Hawk{
 
 		struct VarDecl : public Stmt {
 			VarDecl(Id* id, Type* type, Expr* value): id(id), type(type), value(value) {};
+			~VarDecl(){
+				delete this->id;
+				// this causes a segfault for some reason
+				// delete this->type;
+				delete this->value;
+			};
 
 			Id* id;
 			Type* type;
@@ -146,6 +202,10 @@ namespace Hawk{
 
 		struct VarAssign : public Stmt {
 			VarAssign(Id* id, Expr* value): id(id), value(value) {};
+			~VarAssign(){
+				delete this->id;
+				delete this->value;
+			};
 
 			Id* id;
 			Expr* value;
@@ -158,6 +218,9 @@ namespace Hawk{
 
 		struct FuncCallStmt : public Stmt {
 			FuncCallStmt(FuncCall* expr) : expr(expr) {};
+			~FuncCallStmt(){
+				delete this->expr;
+			};
 
 			FuncCall* expr;
 
@@ -168,6 +231,9 @@ namespace Hawk{
 
 		struct ReturnStmt : public Stmt {
 			ReturnStmt(Expr* expr) : expr(expr) {};
+			~ReturnStmt(){
+				delete this->expr;
+			};
 
 			Expr* expr;
 
@@ -177,12 +243,18 @@ namespace Hawk{
 
 
 		struct FuncDef : public Stmt {
-			FuncDef(Id* id, Type* return_type, Params* params, Block* block)
+			FuncDef(Id* id, Type* return_type, DefParams* params, Block* block)
 				: id(id), return_type(return_type), params(params), block(block) {};
+			~FuncDef(){
+				delete this->id;
+				delete this->return_type;
+				delete this->params;
+				delete this->block;
+			};
 
 			Id* id;
 			Type* return_type;
-			Params* params;
+			DefParams* params;
 			Block* block;
 
 
@@ -195,6 +267,11 @@ namespace Hawk{
 		struct Conditional : public Stmt {
 			Conditional(Expr* cond, Block* then, Stmt* else_block)
 				: cond(cond), then_block(then), else_block(else_block) {};
+			~Conditional(){
+				delete this->cond;
+				delete this->then_block;
+				delete this->else_block;
+			};
 
 			Expr* cond;
 			Block* then_block;
@@ -284,8 +361,8 @@ namespace Hawk{
 
 
 			// FuncDef
-			// 		'func' Id Params type Block
-			// 		'func' Id Params      Block
+			// 		'func' Id DefParams Type Block
+			// 		'func' Id DefParams      Block
 			AST::FuncDef* parse_func_def();
 
 			// Conditional
@@ -318,6 +395,18 @@ namespace Hawk{
 			// Param
 			// 		Expr
 			AST::Param* parse_param();
+
+
+			// DefParams
+			// 		'(' ')'
+			// 		'(' DefParam ')'
+			// 		'(' (DefParam ',')+ DefParam ')'
+			AST::DefParams* parse_def_params();
+
+
+			// DefParam
+			// 		Id ':' Type
+			AST::DefParam* parse_def_param();
 
 
 			// Type

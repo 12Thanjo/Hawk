@@ -1,5 +1,10 @@
 # Changelog
 
+### 0.10.2
+- fixed memory leak
+- fixed bug with function call expressions in variable declarations
+- added function arguments
+
 ### 0.9.8
 - fixed bug with return statments in conditionals
 - fixed bug with global variables
