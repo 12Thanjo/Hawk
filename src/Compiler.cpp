@@ -89,6 +89,8 @@ namespace Hawk{
 
 
 	void Compiler::parse_stmt(AST::Stmt* stmt, AST::FuncDef* func_def){
+		this->just_returned = false;
+
 		switch(stmt->get_type()){
 			case AST::StmtType::VarDecl: {
 				auto var_decl = static_cast<AST::VarDecl*>(stmt);
@@ -107,12 +109,14 @@ namespace Hawk{
 
 				auto ret = llvm::ConstantInt::get(return_type, 0);
 				builder.CreateRet(ret);
+				this->just_returned = true;
+
 			} break; case AST::StmtType::VarAssign: {
 				auto var_assign = static_cast<AST::VarAssign*>(stmt);
 				auto var_name = var_assign->id->token.value;
 
 
-				auto alloca = this->in_current_scope(var_name);
+				auto alloca = this->in_scope(var_name);
 				builder.CreateStore(this->get_llvm_value(var_assign->value), alloca);
 
 			} break; case AST::StmtType::FuncCallStmt: {
@@ -146,29 +150,55 @@ namespace Hawk{
 
 				auto current_func = builder.GetInsertBlock()->getParent();
 
-				llvm::BasicBlock* then_block = llvm::BasicBlock::Create(this->context, "then", current_func);
-				llvm::BasicBlock* else_block = llvm::BasicBlock::Create(this->context, "else");
-				llvm::BasicBlock* merge_block = llvm::BasicBlock::Create(this->context, "if_merge");
+				llvm::BasicBlock* then_block;
+				llvm::BasicBlock* else_block;
+				llvm::BasicBlock* merge_block;
 
-				this->builder.CreateCondBr(cond_value, then_block, else_block);
+
+
+				if(conditional->else_block != nullptr){
+					then_block = llvm::BasicBlock::Create(this->context, "then", current_func);
+					else_block = llvm::BasicBlock::Create(this->context, "else");
+					merge_block = llvm::BasicBlock::Create(this->context, "if_merge");
+
+					this->builder.CreateCondBr(cond_value, then_block, else_block);
+				}else{
+					then_block = llvm::BasicBlock::Create(this->context, "then", current_func);
+					merge_block = llvm::BasicBlock::Create(this->context, "if_merge");
+
+					this->builder.CreateCondBr(cond_value, then_block, merge_block);
+				}
+
+				
 
 				//////////////////////////////////////////////////////////////////////
 				// then
 
 				this->builder.SetInsertPoint(then_block);
 					this->parse_stmt(conditional->then_block, func_def);
-					builder.CreateBr(merge_block);
-				then_block = builder.GetInsertBlock();
+					if(!this->just_returned){
+						builder.CreateBr(merge_block);
+					}else{
+						this->just_returned = false;
+					}
+					then_block = builder.GetInsertBlock();
 
 
 				//////////////////////////////////////////////////////////////////////
 				// else
 
-				current_func->getBasicBlockList().push_back(else_block);
-				this->builder.SetInsertPoint(else_block);
-					this->parse_stmt(conditional->else_block, func_def);
-					builder.CreateBr(merge_block);
-				else_block = builder.GetInsertBlock();
+				if(conditional->else_block != nullptr){
+					current_func->getBasicBlockList().push_back(else_block);
+					this->builder.SetInsertPoint(else_block);
+						this->parse_stmt(conditional->else_block, func_def);
+						if(!this->just_returned){
+							builder.CreateBr(merge_block);
+						}else{
+							this->just_returned = false;
+						}
+						else_block = builder.GetInsertBlock();
+
+				}
 
 				//////////////////////////////////////////////////////////////////////
 				// emit merge
@@ -214,6 +244,19 @@ namespace Hawk{
 			} break;case AST::ExprType::FuncCall: {
 				auto func_name = static_cast<AST::FuncCall*>(expr)->id->token.value;
 				return this->builder.CreateCall(this->llvm_functions[func_name], {});
+
+			} break;case AST::ExprType::Binary: {
+				auto* binary = static_cast<AST::Binary*>(expr);
+				auto* right = this->get_llvm_value(binary->right);
+				auto* left = this->get_llvm_value(binary->left);
+
+				switch(binary->op.type){
+					break;case TokenType::op_plus: return builder.CreateAdd(left, right, "<add>");
+					break;case TokenType::op_minus: return builder.CreateSub(left, right, "<sub>");
+					break;case TokenType::op_mult: return builder.CreateMul(left, right, "<mul>");
+					break;case TokenType::op_div: return builder.CreateSDiv(left, right, "<div>");
+					break;default: cmd::fatal("Recieved unknown binary op type ({})", (int)binary->op.type);
+				};
 
 			} break; default: cmd::fatal("Recieved unknown Expr type for llvm_value ({})", (int)expr->get_type());
 		};

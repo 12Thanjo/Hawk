@@ -110,6 +110,9 @@ namespace Hawk{
 			case TokenType::type_def:		return "[OPERATOR: ':']";
 
 			case TokenType::op_plus:		return "[OPERATOR: '+']";
+			case TokenType::op_minus:		return "[OPERATOR: '-']";
+			case TokenType::op_mult:		return "[OPERATOR: '*']";
+			case TokenType::op_div:			return "[OPERATOR: '/']";
 
 			case TokenType::semicolon:		return "[PUNCTUATION: ';']";
 			case TokenType::comma:			return "[PUNCTUATION: ',']";
@@ -352,11 +355,74 @@ namespace Hawk{
 
 
 
-	// Expr
+
+
+
+
+	// FuncCall
+	// 		Id Params
+	AST::FuncCall* Parser::parse_func_call(){
+		auto id = this->parse_id();
+		auto params = this->parse_params();
+
+		return new AST::FuncCall(id, params);
+	};
+
+
+
+	AST::Expr* Parser::parse_expr(){
+		auto term = this->parse_term();
+		if(term == nullptr) return nullptr;
+		
+		return this->parse_op(term, 0);
+	};
+
+
+	AST::Expr* Parser::parse_op(AST::Expr* left, uint prec){
+		switch(this->peek().type){
+			case TokenType::op_plus:
+			case TokenType::op_minus:
+			case TokenType::op_mult:
+			case TokenType::op_div: {
+
+				auto next_op_prec = this->get_op_prec(this->peek());
+
+				if(next_op_prec > prec){
+					auto next_op = this->get();
+
+					return this->parse_op(new AST::Binary(
+						left,
+						next_op, 
+						this->parse_op(this->parse_term(), next_op_prec)
+					), prec);
+				}
+
+			} break;
+		};
+
+		return left;
+	};
+
+	uint Parser::get_op_prec(const Tokenizer::Token& op){
+		switch(op.type){
+			case TokenType::op_plus:	return 1;
+			case TokenType::op_minus:	return 1;
+
+			case TokenType::op_mult:	return 2;
+			case TokenType::op_div:		return 2;
+
+
+			default: 					return 1000;
+		};
+	};
+
+
+
+	// Term
 	// 		Literal
 	// 		Id
 	// 		FuncCall
-	AST::Expr* Parser::parse_expr(){
+	AST::Expr* Parser::parse_term(){
 		AST::Expr* output = nullptr;
 
 		output = this->parse_literal();
@@ -374,17 +440,6 @@ namespace Hawk{
 
 
 		return nullptr;
-	};
-
-
-
-	// FuncCall
-	// 		Id Params
-	AST::FuncCall* Parser::parse_func_call(){
-		auto id = this->parse_id();
-		auto params = this->parse_params();
-
-		return new AST::FuncCall(id, params);
 	};
 
 
@@ -513,6 +568,13 @@ namespace Hawk{
 		cmd::log("{}FuncCall:", indentation(ident));
 		this->id->print(ident + 1);
 		this->params->print(ident + 1);
+	};
+
+	void AST::Binary::print(uint ident){
+		cmd::log("{}Binary:", indentation(ident));
+		cmd::log("{}op: {}", indentation(ident + 1), this->op.value);
+		this->left->print(ident + 1);
+		this->right->print(ident + 1);
 	};
 
 

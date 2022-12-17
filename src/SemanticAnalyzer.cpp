@@ -178,7 +178,7 @@ namespace Hawk{
 
 				if(var_decl->type != nullptr){ return; };
 
-				if(var_decl->value->get_type() == AST::ExprType::Literal){
+				if(var_decl->value->get_type() == AST::ExprType::Literal || var_decl->value->get_type() == AST::ExprType::Binary){
 					var_decl->type = this->get_expr_type(var_decl->value);
 				}else if(var_decl->value->get_type() == AST::ExprType::Id){
 					auto id_token = static_cast<AST::Id*>(var_decl->value)->token;
@@ -190,6 +190,10 @@ namespace Hawk{
 					}
 
 					var_decl->type = this->get_expr_type(var_decl->value);
+				}else{
+					cmd::fatal("Compiler Fail: Received unknown expr type (SemanticAnalyzer, line: {})", __LINE__);
+					this->error(var_decl->value);
+					return;
 				}
 
 			} break;
@@ -422,6 +426,20 @@ namespace Hawk{
 					return nullptr;	
 				}
 
+			} break; case AST::ExprType::Binary: {
+				auto binary = static_cast<AST::Binary*>(expr);
+
+				auto left = this->get_expr_type(binary->left);
+				auto right = this->get_expr_type(binary->right);
+
+				if(!this->same_expr_type(left, right)){
+					this->error(binary->left);
+					cmd::error("\tBinary expression is invalid");
+					cmd::error("\t[ ({}) {} ({}) ]", left->token.value, binary->op.value, right->token.value);
+					return nullptr;
+				}
+
+				return left;
 				
 			} break; default: {
 				this->error(expr);
@@ -461,6 +479,7 @@ namespace Hawk{
 			break; case AST::ExprType::Param:	 this->error(static_cast<AST::Param*>(expr)->expr);
 			break; case AST::ExprType::Params:	 this->error(static_cast<AST::Params*>(expr)->start);
 			break; case AST::ExprType::FuncCall: this->error(static_cast<AST::FuncCall*>(expr)->id);
+			break; case AST::ExprType::Binary:   this->error(static_cast<AST::Binary*>(expr)->left);
 		};
 	};
 
@@ -493,6 +512,7 @@ namespace Hawk{
 			break; case AST::ExprType::Param:	 this->warning(static_cast<AST::Param*>(expr)->expr);
 			break; case AST::ExprType::Params:	 this->warning(static_cast<AST::Params*>(expr)->start);
 			break; case AST::ExprType::FuncCall: this->warning(static_cast<AST::FuncCall*>(expr)->id);
+			break; case AST::ExprType::Binary:   this->warning(static_cast<AST::Binary*>(expr)->left);
 		};
 	};
 

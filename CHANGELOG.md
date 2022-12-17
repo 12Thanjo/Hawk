@@ -1,5 +1,10 @@
 # Changelog
 
+### 0.9.8
+- fixed bug with return statments in conditionals
+- fixed bug with global variables
+- added arithmetic operators
+
 ### 0.8.6
 - completely overhauled the parser and compiler
 - added the SemanticAnalyzer

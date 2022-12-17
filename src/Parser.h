@@ -16,6 +16,7 @@ namespace Hawk{
 			Param,
 			Params,
 			FuncCall,
+			Binary,
 		};
 
 		struct Expr{
@@ -80,6 +81,20 @@ namespace Hawk{
 
 			void print(uint ident) override;
 			ExprType get_type() override { return ExprType::FuncCall; };
+		};
+
+
+		struct Binary : public Expr {
+			Binary(Expr* left, Tokenizer::Token op, Expr* right)
+				: left(left), op(op), right(right) {};
+
+			Expr* left;
+			Tokenizer::Token op;
+			Expr* right;
+
+
+			void print(uint ident) override;
+			ExprType get_type() override { return ExprType::Binary; };
 		};
 
 
@@ -281,11 +296,11 @@ namespace Hawk{
 
 
 
-			// Expr
-			// 		Literal
-			// 		Id
-			// 		FuncCall //////////////////////////////////////////////////////////////////////////
+
 			AST::Expr* parse_expr();
+			AST::Expr* parse_op(AST::Expr* left, uint prec);
+			uint get_op_prec(const Tokenizer::Token& op);
+			AST::Expr* parse_term();
 
 
 			// FuncCall
@@ -319,6 +334,12 @@ namespace Hawk{
 
 			// Id...
 			AST::Id* parse_id();
+
+
+			//////////////////////////////////////////////////////////////////////
+			// is
+
+			bool is_operator(Tokenizer::Token& token);
 
 
 		private:

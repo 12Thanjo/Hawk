@@ -175,6 +175,7 @@ namespace Hawk{
 
 
 	bool Tokenizer::process_operators(){
+		// assignment
 		if(this->character == '='){
 			this->make_token(Token::Type::assign);
 			return true;
@@ -184,9 +185,22 @@ namespace Hawk{
 		}else if(this->character == '@'){
 			this->make_token(Token::Type::const_type_def);
 			return true;
+
+		// arithmetic
 		}else if(this->character == '+'){
 			this->make_token(Token::Type::op_plus);
 			return true;
+		}else if(this->character == '-'){
+			this->make_token(Token::Type::op_minus);
+			return true;
+		}else if(this->character == '*'){
+			this->make_token(Token::Type::op_mult);
+			return true;
+		}else if(this->character == '/'){
+			this->make_token(Token::Type::op_div);
+			return true;
+
+
 		}
 		return false;
 	};

@@ -85,6 +85,9 @@ namespace Hawk{
 		const_type_def,
 
 		op_plus,
+		op_minus,
+		op_mult,
+		op_div,
 
 		// puncutation
 		semicolon,

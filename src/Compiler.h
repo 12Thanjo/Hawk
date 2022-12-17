@@ -59,6 +59,9 @@ namespace Hawk{
 
 				using Scope = std::map<std::string, llvm::AllocaInst*>;
 				std::list<Scope> scopes;
+
+
+				bool just_returned = false;
 		};	
 
 };
