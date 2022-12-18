@@ -44,6 +44,8 @@ namespace Hawk{
 			AST::VarDecl* in_current_scope(const std::string& var_name);
 			bool in_global_scope();
 
+
+
 		public:
 			std::map<std::string, AST::VarDecl*> global_vars;
 			std::map<std::string, AST::FuncDef*> functions;

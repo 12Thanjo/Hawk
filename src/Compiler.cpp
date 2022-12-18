@@ -53,11 +53,18 @@ namespace Hawk{
 
 			auto prototype = llvm::FunctionType::get(return_type, params, false);
 			llvm::Function* function = llvm::Function::Create(prototype, llvm::Function::ExternalLinkage, name, this->module);
+			this->llvm_functions[name] = function;
+		}
+
+		for(auto [name, func_def] : this->functions){
+			auto return_type_str = func_def->return_type->token.value;
+			auto* function = this->llvm_functions[name];
+
+
 			llvm::BasicBlock* body = llvm::BasicBlock::Create(this->context, "entry", function);
 			this->builder.SetInsertPoint(body);
 
-
-			this->llvm_functions[name] = function;
+			// this->llvm_functions[name] = function;
 
 			this->enter_scope();
 
@@ -96,12 +103,15 @@ namespace Hawk{
 
 
 	void Compiler::import_externs(){
-		// use libc's printf function
-		auto printf_prototype = llvm::FunctionType::get(this->builder.getInt8Ty(), true);
-		auto printf_fn = llvm::Function::Create(printf_prototype, llvm::Function::ExternalLinkage, "printf", this->module);
-		// auto format_str = this->builder.CreateGlobalStringPtr("num: %lli\n");
+		{
+			// use libc's printf function
+			auto prototype = llvm::FunctionType::get(this->builder.getInt8Ty(), true);
+			auto function = llvm::Function::Create(prototype, llvm::Function::ExternalLinkage, "printf", this->module);
 
-		this->llvm_functions["printf"] = printf_fn;
+			this->llvm_functions["printf"] = function;
+		}
+
+
 	};
 
 
@@ -284,19 +294,32 @@ namespace Hawk{
 
 			} break;case AST::ExprType::Binary: {
 				auto* binary = static_cast<AST::Binary*>(expr);
-				auto* right = this->get_llvm_value(binary->right);
 				auto* left = this->get_llvm_value(binary->left);
+				auto* right = this->get_llvm_value(binary->right);
 
 				switch(binary->op.type){
 					break;case TokenType::op_plus: return builder.CreateAdd(left, right, "<add>");
 					break;case TokenType::op_minus: return builder.CreateSub(left, right, "<sub>");
 					break;case TokenType::op_mult: return builder.CreateMul(left, right, "<mul>");
 					break;case TokenType::op_div: return builder.CreateSDiv(left, right, "<div>");
+
+					break;case TokenType::op_lt:	return builder.CreateICmpSLT(left, right, "<");
+					break;case TokenType::op_lte:	return builder.CreateICmpSLE(left, right, "<=");
+					break;case TokenType::op_gt:	return builder.CreateICmpSGT(left, right, ">");
+					break;case TokenType::op_gte:	return builder.CreateICmpSGE(left, right, "<=");
+					break;case TokenType::op_eq:	return builder.CreateICmpEQ(left, right, "==");
+					break;case TokenType::op_neq:	return builder.CreateICmpNE(left, right, "!=");
+
+					break;case TokenType::op_and:	return builder.CreateAnd(left, right, "&&");
+					break;case TokenType::op_or:	return builder.CreateOr(left, right, "||");
+
 					break;default: cmd::fatal("Recieved unknown binary op type ({})", (int)binary->op.type);
 				};
 
 			} break; default: cmd::fatal("Recieved unknown Expr type for llvm_value ({})", (int)expr->get_type());
 		};
+
+		return nullptr;
 	};
 
 
@@ -318,6 +341,8 @@ namespace Hawk{
 
 			} break; default:cmd::fatal("Recieved unknown expr type llvm_constant ({})", (int)expr->get_type());
 		};
+
+		return nullptr;
 	};
 
 
@@ -345,8 +370,14 @@ namespace Hawk{
 		system("llc -filetype=asm output.ll -o output.s");
 	};
 
-	void Compiler::compile_exe(){
-		system("g++ -g output.o -o output.exe");
+	void Compiler::compile_exe(fs::path& program_path){
+		std::string command = "g++ -g output.o ";
+
+		auto path = program_path.parent_path().parent_path().parent_path().parent_path() / "obj/disable_chkstk.o";
+		command += "\"" + path.string() + "\"";
+
+		command +=  " -o output.exe";
+		system(command.c_str());
 	};
 
 	void Compiler::run_interpreter(){

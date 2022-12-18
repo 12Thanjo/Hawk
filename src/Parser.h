@@ -11,6 +11,7 @@ namespace Hawk{
 
 		enum class ExprType{
 			Id,
+			Keyword,
 			Type,
 			Literal,
 			Param,
@@ -35,6 +36,15 @@ namespace Hawk{
 
 			void print(uint ident) override;
 			ExprType get_type() override { return ExprType::Id; };
+		};
+
+		struct Keyword : public Expr {
+			Keyword(Tokenizer::Token token) : token(token) {};
+
+			Tokenizer::Token token;
+
+			void print(uint ident) override;
+			ExprType get_type() override { return ExprType::Keyword; };
 		};
 
 		struct Type : public Expr {
@@ -374,6 +384,8 @@ namespace Hawk{
 
 
 
+
+			// expression binary parsing
 			AST::Expr* parse_expr();
 			AST::Expr* parse_op(AST::Expr* left, uint prec);
 			uint get_op_prec(const Tokenizer::Token& op);

@@ -89,6 +89,17 @@ namespace Hawk{
 		op_mult,
 		op_div,
 
+		op_eq,
+		op_neq,
+		op_lt,
+		op_lte,
+		op_gt,
+		op_gte,
+
+		op_and,
+		op_or,
+
+
 		// puncutation
 		semicolon,
 		comma,

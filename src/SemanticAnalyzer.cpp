@@ -153,7 +153,7 @@ namespace Hawk{
 			if(func_def->return_type == nullptr){
 				if(this->found_return_stmt){
 					this->error(func_def);
-					cmd::error("\tFound return statement in function ({}) with void return type", name);
+					cmd::error("\tFound return statement in function ({}) with 'void' return type", name);
 				}else{
 					auto new_token = Tokenizer::Token(TokenType::generated);
 					new_token.value = "void";
@@ -267,6 +267,12 @@ namespace Hawk{
 				if(func_def->return_type == nullptr){
 					func_def->return_type = return_type;
 				}else{
+					if(return_type == nullptr){
+						this->warning(return_stmt);
+						cmd::warning("\tUnable to determine type of return statement in function ({})", func_def->id->token.value);
+						return;
+					}
+
 					if(!this->same_expr_type(func_def->return_type, return_type)){
 						this->error(return_stmt);
 						cmd::error("\tUnmatching return types (func: {}, return: {})", func_def->return_type->token.value, return_type->token.value);
@@ -365,10 +371,15 @@ namespace Hawk{
 				this->get_expr_type(call_args[i]),
 				func_args[i]->type
 			)){
+
+				auto correct_type = func_args[i]->type->token.value;
+				auto recieved_type = this->get_expr_type(call_args[i])->token.value;
+
 				this->error(func_call);
 				cmd::error("\tIncorrect function argument type in function ({})", func_call_name);
-				cmd::error("\tArgument ({}/{}) is ({}), recieved ({})", i + 1, func_arg_count, func_args[i]->type->token.value, this->get_expr_type(call_args[i])->token.value);
+				cmd::error("\tArgument ({}/{}) is ({}), recieved ({})", i + 1, func_arg_count, correct_type, recieved_type);
 				return;
+
 			}
 		}
 
@@ -556,6 +567,9 @@ namespace Hawk{
 				auto left = this->get_expr_type(binary->left);
 				auto right = this->get_expr_type(binary->right);
 
+				if(left == nullptr) return nullptr;
+				if(right == nullptr) return nullptr;
+
 				if(!this->same_expr_type(left, right)){
 					this->error(binary->left);
 					cmd::error("\tBinary expression is invalid");
@@ -563,7 +577,36 @@ namespace Hawk{
 					return nullptr;
 				}
 
-				return left;
+
+				switch(binary->op.type){
+					case TokenType::op_plus:
+					case TokenType::op_minus:
+					case TokenType::op_mult:
+					case TokenType::op_div:
+						return left;
+
+					case TokenType::op_lt:
+					case TokenType::op_lte:
+					case TokenType::op_gt:
+					case TokenType::op_gte:
+					case TokenType::op_eq: 
+					case TokenType::op_neq:
+					case TokenType::op_and:
+					case TokenType::op_or: 
+					{
+						auto bool_token = Tokenizer::Token(TokenType::generated);
+						bool_token.value = "bool";
+						return new AST::Type(bool_token);
+					};
+
+					default: {
+						this->error(expr);
+						cmd::fatal("\tCompiler Fail:\n\tReceived unknown binary operation type (SemanticAnalyzer, line: {})", __LINE__);
+						return nullptr;
+					};
+				};
+
+				
 				
 			} break; default: {
 				this->error(expr);
@@ -576,11 +619,12 @@ namespace Hawk{
 
 
 	bool SemanticAnalyzer::same_expr_type(AST::Type* type1, AST::Type* type2){
+		if(type1 == nullptr || type2 == nullptr){
+			return false;
+		}
+
 		return type1->token.value == type2->token.value;
 	};
-
-
-
 
 
 
@@ -695,150 +739,6 @@ namespace Hawk{
 	bool SemanticAnalyzer::in_global_scope(){
 		return this->scopes.size() == 1;
 	};
-
-
-
-
-	// void SemanticAnalyzer::get_global_definitions(){
-	// 	// go through all statements to get all definitions (needed to support global forward declaration)
-	// 	for(auto* stmt : this->stmts){
-	// 		if(stmt->get_type() == AST::StmtType::VarDecl){
-	// 			auto* var_decl = static_cast<AST::VarDecl*>(stmt);
-	// 			std::string var_name = var_decl->id->token.value;
-
-	// 			// check if already defined
-	// 			if(this->global_vars.contains(var_name)){
-	// 				auto first_definition = this->global_vars[var_name]->id->token;
-	// 				cmd::error("Global variable ({}) was already defined at <{}, {}>", var_name, first_definition.line, first_definition.collumn);
-	// 				this->error(var_decl->id->token);
-	// 			}else{
-	// 				this->global_vars[var_name] = var_decl;
-	// 				this->global_var_type_checking();
-	// 			}
-
-	// 		}else if(stmt->get_type() == AST::StmtType::FuncDef){
-	// 			auto func_def = static_cast<AST::FuncDef*>(stmt);
-	// 			std::string func_name = func_def->id->token.value;
-
-	// 			if(this->functions.contains(func_name)){
-	// 				auto first_definition = this->global_vars[func_name]->id->token;
-	// 				cmd::error("Function ({}) was already defined at <{}, {}>", func_name, first_definition.line, first_definition.collumn);
-	// 				this->error(func_def->id->token);
-	// 			}else{
-	// 				this->functions[func_name] = func_def;
-	// 			}
-
-
-	// 		}else if(stmt->get_type() == AST::StmtType::VarAssign){
-	// 			auto* var_assign = static_cast<AST::VarAssign*>(stmt);
-	// 			cmd::error("Variable assignments cannot be in global scope\n\t(It must be a definition or moved into another scope)");
-	// 			this->error(var_assign->id->token);
-
-	// 		}else if(stmt->get_type() == AST::StmtType::FuncCallStmt){
-	// 			auto* func_call_stmt = static_cast<AST::FuncCallStmt*>(stmt);
-	// 			cmd::error("Function-call statements cannot be in global scope\n\t(It must be an expression or moved into another scope)");
-	// 			this->error(func_call_stmt->expr->id->token);
-
-	// 		}
-	// 	}
-	// };
-
-
-
-
-	// void SemanticAnalyzer::global_var_type_inference(AST::VarDecl* var_decl){
-	// 	// for(auto [name, var] : this->global_vars){
-	// 		if(var_decl->value != nullptr && var_decl->type == nullptr){
-			 	
-	// 			if(var_decl->type != nullptr){ break; };
-
-	// 			std::string type_str;
-	// 			if(var_decl->value->get_type() == AST::ExprType::Literal){
-	// 				switch(static_cast<AST::Literal*>(var_decl->value)->token.type){
-	// 					break;case TokenType::literal_bool: type_str = "bool";
-	// 					break;case TokenType::literal_number: type_str = "int";
-	// 					break;default: cmd::error("Unknown literal type ({})", Parser::print_token(static_cast<AST::Literal*>(var_decl->value)->token.type));
-	// 				};
-
-	// 				auto new_token = Tokenizer::Token(TokenType::generated);
-	// 				new_token.value = type_str;
-	// 				var_decl->type = new AST::Type(new_token);
-	// 			}else if(var_decl->value->get_type() == AST::ExprType::Id){
-	// 				auto id_token = static_cast<AST::Id*>(var_decl->value)->token;
-	// 				auto value_id = this->get_var(id_token.value);
-
-	// 				if(value_id == nullptr){
-	// 					cmd::error("Global Variable ({}) is undefined", id_token.value);
-	// 					this->error(id_token);
-	// 					break;
-	// 				}
-
-	// 				if(value_id->type == nullptr){
-	// 					cmd::error("Global Variable ({}) doesn't have a type", id_token.value);
-	// 					this->error(id_token);
-	// 				};
-
-	// 				var_decl->type = value_id->type;
-	// 			}
-
-	// 		}
-	// 	// }
-	// };
-
-
-
-	// void SemanticAnalyzer::global_var_type_checking(){
-	// 	for(auto [name, var] : this->global_vars){
-	// 		if(var->value != nullptr){
-	// 		 	std::string var_type = var->type->token.value;
-	// 		 	auto* var_value = var->value;
-	// 		 	std::string var_value_type;
-
-	// 		 	if(var_value->get_type() == AST::ExprType::Literal){
-	// 		 		switch(static_cast<AST::Literal*>(var_value)->token.type){
-	// 		 			break;case TokenType::literal_bool: var_value_type = "bool";
-	// 		 			break;case TokenType::literal_number: var_value_type = "int";
-	// 		 			break;default: cmd::error("Unknown literal type ({})", Parser::print_token(static_cast<AST::Literal*>(var_value)->token.type));
-	// 		 		};
-
-	// 		 	}else if(var_value->get_type() == AST::ExprType::Id){
-	// 		 		auto id_token = static_cast<AST::Id*>(var_value)->token;
-	// 		 		auto id = this->get_var(id_token.value);
-
-	// 		 		if(id == nullptr){
-	// 		 			cmd::error("Global Variable ({}) is undefined", id_token.value);
-	// 		 			this->error(id_token);
-	// 		 			continue;
-	// 		 		}
-
-	// 		 		if(id->type == nullptr){
-	// 		 			cmd::error("Global Variable ({}) doesn't have a type", id_token.value);
-	// 		 			this->error(id_token);
-	// 		 			continue;
-	// 		 		};
-
-	// 		 		var_value_type = id->type->token.value;
-			 		
-	// 		 	}else{
-	// 		 		cmd::error("Unknown value type in definition of global variable ({})", name);
-	// 		 		this->error(var->id->token);
-	// 		 		continue;
-
-	// 		 	}
-
-
-
-	// 		 	if(var_type != var_value_type){
-	// 		 		cmd::error("Type mismatch in definition of global variable ({})", name);
-	// 		 		cmd::error("\t{{ {} : ({}) = ({}) }}", name, var_type, var_value_type);
-	// 		 		this->error(var->id->token);
-	// 		 	}
-	// 		}
-	// 	}
-	// };
-
-
-
 
 
 }

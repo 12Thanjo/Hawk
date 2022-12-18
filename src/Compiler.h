@@ -25,7 +25,7 @@ namespace Hawk{
 				void save_ir_to_file();
 				void compile_to_obj();
 				void compile_to_asm();
-				void compile_exe();
+				void compile_exe(fs::path& program_path);
 				void run_interpreter();
 
 			private:

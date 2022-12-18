@@ -114,6 +114,15 @@ namespace Hawk{
 			case TokenType::op_mult:		return "[OPERATOR: '*']";
 			case TokenType::op_div:			return "[OPERATOR: '/']";
 
+			case TokenType::op_lt:			return "[OPERATOR: '<']";
+			case TokenType::op_lte:			return "[OPERATOR: \"<=\"]";
+			case TokenType::op_gt:			return "[OPERATOR: '>']";
+			case TokenType::op_gte:			return "[OPERATOR: \">=\"]";
+			case TokenType::op_eq:			return "[OPERATOR: \"==\"]";
+			case TokenType::op_neq:			return "[OPERATOR: \"!=\"]";
+			case TokenType::op_and:			return "[OPERATOR: \"&&\"]";
+			case TokenType::op_or:			return "[OPERATOR: \"||\"]";
+
 			case TokenType::semicolon:		return "[PUNCTUATION: ';']";
 			case TokenType::comma:			return "[PUNCTUATION: ',']";
 			case TokenType::open_paren:		return "[PUNCTUATION: '(']";
@@ -383,8 +392,18 @@ namespace Hawk{
 			case TokenType::op_plus:
 			case TokenType::op_minus:
 			case TokenType::op_mult:
-			case TokenType::op_div: {
+			case TokenType::op_div:
 
+			case TokenType::op_lt:
+			case TokenType::op_lte:
+			case TokenType::op_gt:
+			case TokenType::op_gte:
+			case TokenType::op_eq:
+			case TokenType::op_neq:
+			
+			case TokenType::op_and:
+			case TokenType::op_or:
+		{
 				auto next_op_prec = this->get_op_prec(this->peek());
 
 				if(next_op_prec > prec){
@@ -405,12 +424,23 @@ namespace Hawk{
 
 	uint Parser::get_op_prec(const Tokenizer::Token& op){
 		switch(op.type){
-			case TokenType::op_plus:	return 1;
-			case TokenType::op_minus:	return 1;
+			case TokenType::op_and:		return 1;
+			case TokenType::op_or:		return 1;
 
-			case TokenType::op_mult:	return 2;
-			case TokenType::op_div:		return 2;
 
+			case TokenType::op_lt:		return 2;
+			case TokenType::op_lte:		return 2;
+			case TokenType::op_gt:		return 2;
+			case TokenType::op_gte:		return 2;
+			case TokenType::op_eq:		return 2;
+			case TokenType::op_neq:		return 2;
+
+
+			case TokenType::op_plus:	return 3;
+			case TokenType::op_minus:	return 3;
+
+			case TokenType::op_mult:	return 4;
+			case TokenType::op_div:		return 4;
 
 			default: 					return 1000;
 		};
@@ -585,6 +615,10 @@ namespace Hawk{
 
 	void AST::Type::print(uint ident){
 		cmd::log("{}Type: {}", indentation(ident), this->token.value);
+	};
+
+	void AST::Keyword::print(uint ident){
+		cmd::log("{}Keyword: {}", indentation(ident), this->token.value);
 	};
 
 	void AST::Literal::print(uint ident){

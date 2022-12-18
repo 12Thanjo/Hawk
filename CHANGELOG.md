@@ -1,5 +1,11 @@
 # Changelog
 
+### 0.11.3
+- added logical operators
+- fixed right side of the expression being evaluated before the left side
+- fixed bugs with alphabetical order of functions causing segfaults
+- fixed bug of link not finding function `__chkstk`
+
 ### 0.10.2
 - fixed memory leak
 - fixed bug with function call expressions in variable declarations

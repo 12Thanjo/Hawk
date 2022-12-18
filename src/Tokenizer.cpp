@@ -137,6 +137,7 @@ namespace Hawk{
 
 			}else if(this->token_val == "true" || this->token_val == "false"){
 				this->make_token(Token::Type::literal_bool);
+
 			
 			}else{
 				this->make_token(Token::Type::id);
@@ -175,34 +176,48 @@ namespace Hawk{
 
 
 	bool Tokenizer::process_operators(){
+		#define SINGLE(c, token) \
+			}else if(this->character == c){ \
+				this->make_token(Token::Type::token); \
+				return true;
+
+		#define DOUBLE(c1, c2, token) \
+			}else if(this->character == c1 && this->stream.peek(0) == c2){ \
+				this->character = this->stream.next().value(); \
+				this->token_val += this->character; \
+				this->make_token(Token::Type::token); \
+				return true;
+
+		// needed to start the macro chain
+		if(false){
+
+
+		// logical
+		DOUBLE('<', '=', op_lte);
+		DOUBLE('>', '=', op_gte);
+		DOUBLE('=', '=', op_eq);
+		DOUBLE('!', '=', op_neq);
+		DOUBLE('&', '&', op_and);
+		DOUBLE('|', '|', op_gte);
+		SINGLE('<', op_lt);
+		SINGLE('>', op_gt);
+
 		// assignment
-		if(this->character == '='){
-			this->make_token(Token::Type::assign);
-			return true;
-		}else if(this->character == ':'){
-			this->make_token(Token::Type::type_def);
-			return true;
-		}else if(this->character == '@'){
-			this->make_token(Token::Type::const_type_def);
-			return true;
+		SINGLE('=', assign);
+		SINGLE(':', type_def);
+		SINGLE('@', const_type_def);
 
 		// arithmetic
-		}else if(this->character == '+'){
-			this->make_token(Token::Type::op_plus);
-			return true;
-		}else if(this->character == '-'){
-			this->make_token(Token::Type::op_minus);
-			return true;
-		}else if(this->character == '*'){
-			this->make_token(Token::Type::op_mult);
-			return true;
-		}else if(this->character == '/'){
-			this->make_token(Token::Type::op_div);
-			return true;
+		SINGLE('+', op_plus);
+		SINGLE('-', op_minus);
+		SINGLE('*', op_mult);
+		SINGLE('/', op_div);
 
 
-		}
-		return false;
+		} return false;
+
+		#undef SINGLE
+		#undef DOUBLE
 	};
 
 

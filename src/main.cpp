@@ -14,7 +14,7 @@ namespace Hawk{
 
 
 	void print_version(){
-		cmd::info("Hawk version: 0.10.2");
+		cmd::info("Hawk version: 0.11.3");
 	};
 	void print_help();
 
@@ -155,7 +155,7 @@ namespace Hawk{
 
 			}else if(output_mode == OutputMode::exe){
 				compiler.compile_to_obj();
-				compiler.compile_exe();
+				compiler.compile_exe(program_path);
 
 			}else if(output_mode == OutputMode::interpret){
 				cmd::info("\nInterpreter:");
