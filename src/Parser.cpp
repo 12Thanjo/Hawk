@@ -82,7 +82,8 @@ namespace Hawk{
 	std::string Parser::print_token(const Tokenizer::Token& token){
 		switch(token.type){
 			case TokenType::id:				return fmt::format("[ID: {}]", token.value);
-			case TokenType::literal_number:	return fmt::format("[LITERAL: {}]", token.value);
+			case TokenType::literal_int:	return fmt::format("[LITERAL: {}]", token.value);
+			case TokenType::literal_float:	return fmt::format("[LITERAL: {}]", token.value);
 			case TokenType::literal_bool:	return fmt::format("[LITERAL: {}]", token.value);
 
 			default: 						return Parser::print_token(token.type);
@@ -94,7 +95,8 @@ namespace Hawk{
 			case TokenType::none:			return "[NONE]";
 
 			case TokenType::id:				return "[ID]";
-			case TokenType::literal_number:	return "[LITERAL NUMBER]";
+			case TokenType::literal_int:	return "[LITERAL INT]";
+			case TokenType::literal_float:	return "[LITERAL FLOAT]";
 			case TokenType::literal_bool:	return "[LITERAL BOOL]";
 
 			case TokenType::keyword_func:	return "[KEYWORD: func]";
@@ -104,6 +106,7 @@ namespace Hawk{
 
 			case TokenType::type_void:		return "[TYPE: void]";
 			case TokenType::type_int:		return "[TYPE: int]";
+			case TokenType::type_float:		return "[TYPE: float]";
 			case TokenType::type_bool:		return "[TYPE: bool]";
 
 			case TokenType::assign:			return "[OPERATOR: '=']";
@@ -482,6 +485,7 @@ namespace Hawk{
 		switch(this->peek().type){
 			case TokenType::id: 		return dynamic_cast<AST::Type*>(this->parse_id());
 			case TokenType::type_int:	return new AST::Type(this->get());
+			case TokenType::type_float:	return new AST::Type(this->get());
 			case TokenType::type_void:	return new AST::Type(this->get());
 			case TokenType::type_bool:	return new AST::Type(this->get());
 			default: 					return nullptr;
@@ -577,10 +581,12 @@ namespace Hawk{
 
 	// Literal
 	// 		literal_int
+	// 		literal_float
 	// 		literal_bool
 	AST::Literal* Parser::parse_literal(){
 		switch(this->peek().type){
-			case TokenType::literal_number:	return new AST::Literal(this->get());
+			case TokenType::literal_int:	return new AST::Literal(this->get());
+			case TokenType::literal_float:	return new AST::Literal(this->get());
 			case TokenType::literal_bool:	return new AST::Literal(this->get());
 			default: 						return nullptr;
 		};

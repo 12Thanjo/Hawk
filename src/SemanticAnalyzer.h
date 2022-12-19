@@ -7,7 +7,7 @@ namespace Hawk{
 	class SemanticAnalyzer{
 		public:
 			SemanticAnalyzer(const std::vector<AST::Stmt*>& stmts);
-			~SemanticAnalyzer() = default;
+			~SemanticAnalyzer();
 
 			void begin();
 
@@ -61,6 +61,11 @@ namespace Hawk{
 
 			using Scope = std::map<std::string, AST::VarDecl*>;
 			std::list<Scope> scopes;
+
+
+
+			// these are generated (for equality testing)
+			std::map<std::string, AST::Type*> types;
 
 	};
 	

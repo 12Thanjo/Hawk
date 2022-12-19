@@ -19,27 +19,27 @@ namespace Hawk::cmd{
 
 	template<typename... Args>
 	void print(const char* str, Args&&... args){
-		out((Hawk::fmt::format(str, args...)+'\n').c_str());
+		out((Hawk::fmt::format(str, args...)+"\x1b[0m\n").c_str());
 	};
 
 
 	template<typename Arg>
 	void print(Arg&& arg){
-		print("{}", arg);
+		print("{}\x1b[0m", arg);
 	}
 	template<typename Arg>
 	void print(const Arg& arg){
-		print("{}", arg);
+		print("{}\x1b[0m", arg);
 	}
 
 
 	template<>
 	void print<std::string>(std::string&& arg){
-		out((arg + '\n').c_str());
+		out((arg + "\x1b[0m\n").c_str());
 	}
 	template<>
 	void print<std::string>(const std::string& arg){
-		out((arg + '\n').c_str());
+		out((arg + "\x1b[0m\n").c_str());
 	}
 
 

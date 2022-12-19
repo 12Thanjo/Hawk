@@ -147,6 +147,9 @@ namespace Hawk{
 			Tokenizer::Token op;
 			Expr* right;
 
+			// value set by semantic analyzer
+			Type* type = nullptr;
+
 
 			void print(uint ident) override;
 			ExprType get_type() override { return ExprType::Binary; };
@@ -389,6 +392,11 @@ namespace Hawk{
 			AST::Expr* parse_expr();
 			AST::Expr* parse_op(AST::Expr* left, uint prec);
 			uint get_op_prec(const Tokenizer::Token& op);
+
+			// Term
+			// 		Literal
+			// 		Id
+			// 		FuncCall
 			AST::Expr* parse_term();
 
 
@@ -429,6 +437,7 @@ namespace Hawk{
 
 			// Literal
 			// 		literal_int
+			// 		literal_float
 			// 		literal_bool
 			AST::Literal* parse_literal();
 

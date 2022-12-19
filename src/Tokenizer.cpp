@@ -121,6 +121,8 @@ namespace Hawk{
 				this->make_token(Token::Type::type_void);
 			}else if(this->token_val == "int"){
 				this->make_token(Token::Type::type_int);
+			}else if(this->token_val == "float"){
+				this->make_token(Token::Type::type_float);
 			}else if(this->token_val == "bool"){
 				this->make_token(Token::Type::type_bool);
 
@@ -164,8 +166,28 @@ namespace Hawk{
 				return false;
 			});
 
+			auto peek = this->stream.peek();
+			if(peek.has_value() && peek.value() == '.'){
+				this->character = this->stream.next().value();
+				this->token_val += this->character;
 
-			this->make_token(Token::Type::literal_number);
+				this->move_while([&](){
+					auto peek = this->stream.peek();
+					if(peek.has_value()){
+						return this->is_number(peek.value());
+					}else{
+						cmd::fatal("Attempted to read past the end of the file");
+						this->error();
+					}
+					return false;
+				});
+
+				this->make_token(Token::Type::literal_float);
+			}else{
+				this->make_token(Token::Type::literal_int);
+			}
+
+
 			return true;
 		}
 

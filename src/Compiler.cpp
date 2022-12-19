@@ -14,6 +14,7 @@ namespace Hawk{
 			context(), builder(context), module(package_name, context) {
 		
 		this->types["int"] = this->builder.getInt64Ty();
+		this->types["float"] = this->builder.getDoubleTy();
 		this->types["bool"] = this->builder.getInt1Ty();
 		this->types["void"] = this->builder.getVoidTy();
 
@@ -156,7 +157,7 @@ namespace Hawk{
 				auto params = func_call->params->params;
 
 				if(func_name == "printf"){
-					auto format_str = builder.CreateGlobalStringPtr("Printed from libc::printf (%lli)\n");
+					auto format_str = builder.CreateGlobalStringPtr("Printed from libc::printf (%f)\n");
 
 					auto first = params[0]->expr;
 					auto val = this->get_llvm_value(params[0]);
@@ -258,8 +259,10 @@ namespace Hawk{
 			case AST::ExprType::Literal: {
 				auto literal = static_cast<AST::Literal*>(expr);
 
-				if(literal->token.type == TokenType::literal_number){
-					return llvm::ConstantInt::get(this->types["int"], std::stoull(static_cast<AST::Literal*>(expr)->token.value));
+				if(literal->token.type == TokenType::literal_int){
+					return llvm::ConstantInt::get(this->types["int"], std::stoll(static_cast<AST::Literal*>(expr)->token.value));
+				}else if(literal->token.type == TokenType::literal_float){
+					return llvm::ConstantFP::get(this->types["float"], std::stod(static_cast<AST::Literal*>(expr)->token.value));
 				}else if(literal->token.type == TokenType::literal_bool){
 					return llvm::ConstantInt::get(this->types["bool"], static_cast<AST::Literal*>(expr)->token.value == "true" ? 1 : 0);
 				}else{
@@ -297,24 +300,62 @@ namespace Hawk{
 				auto* left = this->get_llvm_value(binary->left);
 				auto* right = this->get_llvm_value(binary->right);
 
-				switch(binary->op.type){
-					break;case TokenType::op_plus: return builder.CreateAdd(left, right, "<add>");
-					break;case TokenType::op_minus: return builder.CreateSub(left, right, "<sub>");
-					break;case TokenType::op_mult: return builder.CreateMul(left, right, "<mul>");
-					break;case TokenType::op_div: return builder.CreateSDiv(left, right, "<div>");
+				if(binary->type == nullptr){
+					cmd::fatal("Compiler recieved binary expr type as nullptr");
+					cmd::fatal("It should have been set in the SemanticAnalyzer");
+				}
 
-					break;case TokenType::op_lt:	return builder.CreateICmpSLT(left, right, "<");
-					break;case TokenType::op_lte:	return builder.CreateICmpSLE(left, right, "<=");
-					break;case TokenType::op_gt:	return builder.CreateICmpSGT(left, right, ">");
-					break;case TokenType::op_gte:	return builder.CreateICmpSGE(left, right, "<=");
-					break;case TokenType::op_eq:	return builder.CreateICmpEQ(left, right, "==");
-					break;case TokenType::op_neq:	return builder.CreateICmpNE(left, right, "!=");
+				auto expr_type = binary->type->token.value;
 
-					break;case TokenType::op_and:	return builder.CreateAnd(left, right, "&&");
-					break;case TokenType::op_or:	return builder.CreateOr(left, right, "||");
+				if(expr_type == "int"){
+					switch(binary->op.type){
+						break;case TokenType::op_plus: return builder.CreateAdd(left, right, "<add>");
+						break;case TokenType::op_minus: return builder.CreateSub(left, right, "<sub>");
+						break;case TokenType::op_mult: return builder.CreateMul(left, right, "<mul>");
+						break;case TokenType::op_div: return builder.CreateSDiv(left, right, "<div>");
 
-					break;default: cmd::fatal("Recieved unknown binary op type ({})", (int)binary->op.type);
-				};
+						break;case TokenType::op_lt:	return builder.CreateICmpSLT(left, right, "<");
+						break;case TokenType::op_lte:	return builder.CreateICmpSLE(left, right, "<=");
+						break;case TokenType::op_gt:	return builder.CreateICmpSGT(left, right, ">");
+						break;case TokenType::op_gte:	return builder.CreateICmpSGE(left, right, "<=");
+						break;case TokenType::op_eq:	return builder.CreateICmpEQ(left, right, "==");
+						break;case TokenType::op_neq:	return builder.CreateICmpNE(left, right, "!=");
+
+						break;default: cmd::fatal("Recieved unknown binary op type ({}) for int expr", (int)binary->op.type);
+					};
+				}else if(expr_type == "float"){
+					switch(binary->op.type){
+						break;case TokenType::op_plus: return builder.CreateFAdd(left, right, "<add>");
+						break;case TokenType::op_minus: return builder.CreateFSub(left, right, "<sub>");
+						break;case TokenType::op_mult: return builder.CreateFMul(left, right, "<mul>");
+						break;case TokenType::op_div: return builder.CreateFDiv(left, right, "<div>");
+
+						break;case TokenType::op_lt:	return builder.CreateFCmpOLT(left, right, "<");
+						break;case TokenType::op_lte:	return builder.CreateFCmpOLE(left, right, "<=");
+						break;case TokenType::op_gt:	return builder.CreateFCmpOGT(left, right, ">");
+						break;case TokenType::op_gte:	return builder.CreateFCmpOGE(left, right, "<=");
+						break;case TokenType::op_eq:	return builder.CreateFCmpOEQ(left, right, "==");
+						break;case TokenType::op_neq:	return builder.CreateFCmpONE(left, right, "!=");
+
+
+						break;default: cmd::fatal("Recieved unknown binary op type ({}) for float expr", (int)binary->op.type);
+					};
+					
+				}else if(expr_type == "bool"){
+					switch(binary->op.type){
+						break;case TokenType::op_eq:	return builder.CreateICmpEQ(left, right, "==");
+						break;case TokenType::op_neq:	return builder.CreateICmpNE(left, right, "!=");
+
+						break;case TokenType::op_and:	return builder.CreateLogicalAnd(left, right, "&&");
+						break;case TokenType::op_or:	return builder.CreateLogicalOr(left, right, "||");
+
+						break;default: cmd::fatal("Recieved unknown binary op type ({}) for bool expr", (int)binary->op.type);
+					}
+				}else{
+					cmd::fatal("Recieved unknown binary expr type ({})", expr_type);
+				}
+
+
 
 			} break; default: cmd::fatal("Recieved unknown Expr type for llvm_value ({})", (int)expr->get_type());
 		};
@@ -328,8 +369,10 @@ namespace Hawk{
 			case AST::ExprType::Literal: {
 				auto literal = static_cast<AST::Literal*>(expr);
 
-				if(literal->token.type == TokenType::literal_number){
-					return llvm::ConstantInt::get(this->types["int"], std::stoull(static_cast<AST::Literal*>(expr)->token.value));
+				if(literal->token.type == TokenType::literal_int){
+					return llvm::ConstantInt::get(this->types["int"], std::stoll(static_cast<AST::Literal*>(expr)->token.value));
+				}else if(literal->token.type == TokenType::literal_float){
+					return llvm::ConstantInt::get(this->types["float"], std::stod(static_cast<AST::Literal*>(expr)->token.value));
 				}else if(literal->token.type == TokenType::literal_bool){
 					return llvm::ConstantInt::get(this->types["bool"], static_cast<AST::Literal*>(expr)->token.value == "true" ? 1 : 0);
 				}else{

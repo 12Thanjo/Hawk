@@ -14,7 +14,7 @@ namespace Hawk{
 
 
 	void print_version(){
-		cmd::info("Hawk version: 0.11.3");
+		cmd::info("Hawk version: 0.12.1");
 	};
 	void print_help();
 

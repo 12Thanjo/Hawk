@@ -7,6 +7,26 @@ namespace Hawk{
 
 	SemanticAnalyzer::SemanticAnalyzer(const std::vector<AST::Stmt*>& stmts) : stmts(stmts) {
 		this->enter_scope();
+
+		#define GENERATE_TYPE(type) { \
+			auto new_token = Tokenizer::Token(TokenType::generated); \
+			new_token.value = type; \
+			this->types[type] = new AST::Type(new_token); \
+		}
+
+		GENERATE_TYPE("void");
+		GENERATE_TYPE("int");
+		GENERATE_TYPE("float");
+		GENERATE_TYPE("bool");
+
+
+		#undef GENERATE_TYPE
+	};
+
+	SemanticAnalyzer::~SemanticAnalyzer(){
+		for(auto [name, type] : this->types){
+			delete type;
+		}
 	};
 
 
@@ -155,9 +175,7 @@ namespace Hawk{
 					this->error(func_def);
 					cmd::error("\tFound return statement in function ({}) with 'void' return type", name);
 				}else{
-					auto new_token = Tokenizer::Token(TokenType::generated);
-					new_token.value = "void";
-					func_def->return_type = new AST::Type(new_token);
+					func_def->return_type = this->types["void"];
 				}
 			}else if(!this->found_return_stmt && func_def->return_type->token.value != "void"){
 				this->error(func_def);
@@ -420,9 +438,14 @@ namespace Hawk{
 				auto var_name = var_decl->id->token.value;
 
 				if(var_decl->type == nullptr){
+					// type not defined
 					var_decl->type = this->get_expr_type(var_decl->value);
 				}else{
+					// type is defined
 					auto expr_type = this->get_expr_type(var_decl->value);
+
+
+
 					if(!this->same_expr_type(var_decl->type, expr_type)){
 						this->error(var_decl);
 						cmd::error("\tType mismatch in definition of variable ({})", var_name);
@@ -437,14 +460,26 @@ namespace Hawk{
 				auto var_assign = static_cast<AST::VarAssign*>(stmt);
 				auto var_name = var_assign->id->token.value;
 
-				if(!this->in_scope(var_name)){
+				auto* var = this->in_scope(var_name);
+				if(var == nullptr){
 					this->error(var_assign);
 					cmd::error("\tAssignment of undefined variable ({})", var_name);
 				}
 
+
+				auto* var_type = var->type;
+				auto* assign_type = this->get_expr_type(var_assign->value);
+				if(!this->same_expr_type(var_type, assign_type)){
+					this->error(var_assign);
+					cmd::error("\tIncorrect expression type in assignment of variable ({})", var_name);
+					cmd::error("\texpected ({}), recieved ({})", var_type->token.value, assign_type->token.value);
+				}
+
 			} break;case AST::StmtType::FuncCallStmt: {
-				auto func_call_stmt = static_cast<AST::FuncCallStmt*>(stmt);
-				// check params when they exist
+				auto* func_call_stmt = static_cast<AST::FuncCallStmt*>(stmt);
+				if(func_call_stmt->expr->id->token.value == "printf"){
+					cmd::warning("Semantic Analyzer not run on arguments to printf (may cause compilation errors/seg-faults)");
+				}
 
 			} break;case AST::StmtType::ReturnStmt: {
 				// do nothing
@@ -469,11 +504,8 @@ namespace Hawk{
 			} break;case AST::StmtType::Conditional: {
 				auto conditional = static_cast<AST::Conditional*>(stmt);
 
-				auto bool_token = Tokenizer::Token(TokenType::generated);
-				bool_token.value = "bool";
-				auto bool_type = AST::Type(bool_token);
 
-				if( !this->same_expr_type(&bool_type, this->get_expr_type(conditional->cond)) ){
+				if( !this->same_expr_type(this->types["bool"], this->get_expr_type(conditional->cond)) ){
 					this->error(conditional->cond);
 					cmd::error("\tConditional expressions must return type 'bool'");
 				}
@@ -506,15 +538,17 @@ namespace Hawk{
 				std::string type_str;
 				switch(static_cast<AST::Literal*>(expr)->token.type){
 					break;case TokenType::literal_bool: type_str = "bool";
-					break;case TokenType::literal_number: type_str = "int";
+					break;case TokenType::literal_int: type_str = "int";
+					break;case TokenType::literal_float: type_str = "float";
 					break;default:
 						this->error(expr);
-						cmd::error("\tUnknown literal type ({})", Parser::print_token(static_cast<AST::Literal*>(expr)->token.type));
+						cmd::fatal("\tUnknown literal type ({})", Parser::print_token(static_cast<AST::Literal*>(expr)->token.type));
 				};
 
-				auto new_token = Tokenizer::Token(TokenType::generated);
-				new_token.value = type_str;
-				return new AST::Type(new_token);
+				// auto new_token = Tokenizer::Token(TokenType::generated);
+				// new_token.value = type_str;
+				// return new AST::Type(new_token);
+				return this->types[type_str];
 
 			} break; case AST::ExprType::Id: {
 				auto id_token = static_cast<AST::Id*>(expr)->token;
@@ -564,9 +598,14 @@ namespace Hawk{
 			} break; case AST::ExprType::Binary: {
 				auto binary = static_cast<AST::Binary*>(expr);
 
+
 				auto left = this->get_expr_type(binary->left);
 				auto right = this->get_expr_type(binary->right);
 
+				if(binary->type != nullptr){
+					return binary->type;
+				}
+				
 				if(left == nullptr) return nullptr;
 				if(right == nullptr) return nullptr;
 
@@ -582,8 +621,10 @@ namespace Hawk{
 					case TokenType::op_plus:
 					case TokenType::op_minus:
 					case TokenType::op_mult:
-					case TokenType::op_div:
+					case TokenType::op_div:{
+						binary->type = left;
 						return left;
+					}
 
 					case TokenType::op_lt:
 					case TokenType::op_lte:
@@ -596,6 +637,7 @@ namespace Hawk{
 					{
 						auto bool_token = Tokenizer::Token(TokenType::generated);
 						bool_token.value = "bool";
+						binary->type = new AST::Type(bool_token);
 						return new AST::Type(bool_token);
 					};
 
